@@ -17,6 +17,14 @@ import socket
 import random
 import serial 
 import time 
+import csv
+from datetime import datetime
+
+# Get current datetime
+now = datetime.now()
+
+# Format it as 'YYYY-MM-DD_HH-MM-SS'
+timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
 
 # Initialize Serial Port connection to Arduino
 arduino = serial.Serial(port='COM5', baudrate=115200, timeout=.1) 
@@ -27,8 +35,11 @@ isVideo = 0
 take_data_code = 'a'
 take_amb_p_code = 'b'
 
-with open("arduino_data.csv", "w") as file:
+with open("arduino_data"+timestamp+".csv", "w", newline="") as file:
     print("Writing data to arduino_data.csv...")
+    writer = csv.writer(file)
+    writer.writerow(["x", "Pressure", "Ambient"])  # Header
+    file.flush()
 
     while True:
         # Check if the arduino is ready to receive data
@@ -38,7 +49,8 @@ with open("arduino_data.csv", "w") as file:
             # Clear any backlog of Arduino messages
             while arduino.in_waiting:
                 arduino.read()
-                # print("In Waiting")
+                print("In Waiting 1")
+                time.sleep(0.1)
             
             # Write code to Arduino
             # a Take data
@@ -52,29 +64,48 @@ with open("arduino_data.csv", "w") as file:
                 
             else:
                 code = code_orig
-            
+                
+            # Clear any backlog of Arduino messages
+            while arduino.in_waiting:
+                print(arduino.read())
+                print("In Waiting 2")
+                #time.sleep(0.1)
             
             # Send 3 times in case of dropped packets
             arduino.write(code.encode())
             time.sleep(0.05)
             
+            returned_str = arduino.readline().decode("utf-8").strip('\n').strip('\r')
+            while(not returned_str.startswith("Arduino Data Ready")):
+                time.sleep(0.05)
+                returned_str = arduino.readline().decode("utf-8").strip('\n').strip('\r')
+                print(returned_str)
             
-            #Clear the arduino queue to get an accurate reading
-            while arduino.in_waiting:
-                print(arduino.read())
-                print("In Waiting")
-                time.sleep(0.1)
+            arduino.write("SendData".encode())
             
-            returned_str = arduino.readline().decode("utf-8").strip()
+            returned_str = arduino.readline().decode("utf-8").strip('\n').strip('\r')
+            while(not returned_str.startswith("Data")):
+                time.sleep(0.05)
+                returned_str = arduino.readline().decode("utf-8").strip('\n').strip('\r')
+                #print(returned_str)
+            
             print(returned_str)
+            
+            modified_str = returned_str.split("Data:,", 1)[1]
+            
+            pitot_press_str = modified_str.split(",", 1)[0]
+            ambient_press_str = modified_str.split(",", 1)[1]
             
             
             if code_orig == take_data_code:
-                file.write(returned_str+","+x_pos + "\n")  # Save to file
-                file.flush()  # Ensure data is written
+                writer.writerow([x_pos, pitot_press_str, ambient_press_str])
+                file.flush()
+                print("Wrote to CSV")
+                
                 
             elif code_orig == take_amb_p_code:
-                file.write(returned_str + ","+"press"+"\n")  # Save to file
-                file.flush()  # Ensure data is written
+                writer.writerow(["-", "-", modified_str])
+                file.flush()
+                print("Wrote to CSV")
                     
             

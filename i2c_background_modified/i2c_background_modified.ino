@@ -1,7 +1,8 @@
 #include <Dps310.h>
 
 // Dps310 Opject
-Dps310 Dps310PressureSensor = Dps310();
+Dps310 Dps310PressureSensorPitot = Dps310();
+Dps310 Dps310PressureSensorAmbient = Dps310();
 
 void setup()
 {
@@ -12,7 +13,9 @@ void setup()
   //The parameter 0x76 is the bus address. The default address is 0x77 and does not need to be given.
   //Dps310PressureSensor.begin(Wire, 0x76);
   //Use the commented line below instead to use the default I2C address.
-  Dps310PressureSensor.begin(Wire);
+  Dps310PressureSensorPitot.begin(Wire);
+
+  Dps310PressureSensorAmbient.begin(Wire, 0x76);
 
   //temperature measure rate (value from 0 to 7)
   //2^temp_mr temperature measurement results per second
@@ -32,16 +35,27 @@ void setup()
   //temperature and pressure ar measured automatically
   //High precision and hgh measure rates at the same time are not available.
   //Consult Datasheet (or trial and error) for more information
-  int16_t ret = Dps310PressureSensor.startMeasureBothCont(temp_mr, temp_osr, prs_mr, prs_osr);
+  int16_t ret1 = Dps310PressureSensorPitot.startMeasureBothCont(temp_mr, temp_osr, prs_mr, prs_osr);
+  int16_t ret2 = Dps310PressureSensorAmbient.startMeasureBothCont(temp_mr, temp_osr, prs_mr, prs_osr);
   //Use one of the commented lines below instead to measure only temperature or pressure
   //int16_t ret = Dps310PressureSensor.startMeasureTempCont(temp_mr, temp_osr);
   //int16_t ret = Dps310PressureSensor.startMeasurePressureCont(prs_mr, prs_osr);
 
 
-  if (ret != 0)
+  if (ret1 != 0)
   {
-    Serial.print("Init FAILED! ret = ");
-    Serial.println(ret);
+    Serial.print("Pitot Init FAILED! ret = ");
+    Serial.println(ret1);
+  }
+  else
+  {
+    Serial.println("Init complete!");
+  }
+
+  if (ret2 != 0)
+  {
+    Serial.print("Ambient Init FAILED! ret = ");
+    Serial.println(ret2);
   }
   else
   {
@@ -72,15 +86,15 @@ String get_Vals_serial() {
   // Need to tell Python script it's ready
   while (!Serial.available()) {
     Serial.println("Arduino Ready");
-    delay(20);
+    delay(1000);
   }
 
-  Serial.println("Exited While");
+  //Serial.println("Exited While");
 
   // Gets rid of anything unimportant that was sent to Arduino from Python
-  while (Serial.available()) {
-    String incomingString = Serial.readStringUntil('\n');
-  }
+  //while (Serial.available()) {
+  //  String incomingString = Serial.readStringUntil('\n');
+  //}
 
   // https://docs.arduino.cc/language-reference/en/functions/communication/serial/read/
   while (!Serial.available()) {}  // stays in while loop until there's something available to read
@@ -94,7 +108,8 @@ String get_Vals_serial() {
 
 void getData(){
   uint8_t pressureCount = 20;
-  float pressure[pressureCount];
+  float pressurePitot[pressureCount];
+  float pressureAmbient[pressureCount];
   uint8_t temperatureCount = 20;
  float temperature[temperatureCount];
 
@@ -102,25 +117,43 @@ void getData(){
   //The parameters temperatureCount and pressureCount should hold the sizes of the arrays temperature and pressure when the function is called
   //After the end of the function, temperatureCount and pressureCount hold the numbers of values written to the arrays
   //Note: The Dps310 cannot save more than 32 results. When its result buffer is full, it won't save any new measurement results
-  int16_t ret = Dps310PressureSensor.getContResults(temperature, temperatureCount, pressure, pressureCount);
+  int16_t ret1 = Dps310PressureSensorPitot.getContResults(temperature, temperatureCount, pressurePitot, pressureCount);
+  int16_t ret2 = Dps310PressureSensorAmbient.getContResults(temperature, temperatureCount, pressureAmbient, pressureCount);
 
-  if (ret != 0)
+  if (ret1 != 0)
   {
     Serial.println();
     Serial.println();
-    Serial.print("FAIL! ret = ");
-    Serial.println(ret);
+    Serial.print("Pitot FAIL! ret = ");
+    Serial.println(ret1);
+  }
+  else if (ret2 != 0)
+  {
+    Serial.println();
+    Serial.println();
+    Serial.print("Ambient FAIL! ret = ");
+    Serial.println(ret2);
   }
   else
   {
-    float sum = 0;
+    float sumPitot = 0;
+    float sumAmbient = 0;
     for (int16_t i = 0; i < pressureCount; i++)
     {
-      sum += pressure[i];
+      sumPitot += pressurePitot[i];
+      sumAmbient += pressureAmbient[i];
     }
-    float avg_pressure = sum/pressureCount;
+    float avg_pressurePitot = sumPitot/pressureCount;
+    float avg_pressureAmbient = sumAmbient/pressureCount;
     // Send data to python to write
-    Serial.println(avg_pressure);
+    while (!Serial.available()) {
+    Serial.println("Arduino Data Ready");
+    delay(1000);
+    }
+    Serial.print("Data:,");
+    Serial.print(avg_pressurePitot);
+    Serial.print(",");
+    Serial.println(avg_pressureAmbient);
   }
 
   
