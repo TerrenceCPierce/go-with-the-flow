@@ -52,7 +52,7 @@ with open("arduino_data"+timestamp+".csv", "w", newline="") as file:
             # Clear any backlog of Arduino messages
             while arduino.in_waiting:
                 arduino.read()
-                print("In Waiting 1")
+                #print("In Waiting 1")
                 time.sleep(0.1)
             
             # Write code to Arduino
@@ -63,17 +63,17 @@ with open("arduino_data"+timestamp+".csv", "w", newline="") as file:
             
             if code == take_data_code:
                 if x_pos == -1:
-                    x_pos = input("Enter First x position (mm)\n")
+                    x_pos = input("Enter first x position (mm)\n")
                 else:
-                    print("Last x position was "+ x_pos+" mm\n")
+                    print("Last x position was "+ x_pos+" mm")
                     x_pos = input("Enter x position (mm)\n")
                 thrust = input("Enter Thrust (g)\n")
                 
                 
             # Clear any backlog of Arduino messages
             while arduino.in_waiting:
-                print(arduino.read())
-                print("In Waiting 2")
+                arduino.read()
+                #print("In Waiting 2")
                 #time.sleep(0.1)
             
             # Send 3 times in case of dropped packets
