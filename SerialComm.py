@@ -35,10 +35,13 @@ isVideo = 0
 take_data_code = 'a'
 take_amb_p_code = 'b'
 
+# Initialize x_pos
+x_pos = -1
+
 with open("arduino_data"+timestamp+".csv", "w", newline="") as file:
     print("Writing data to arduino_data.csv...")
     writer = csv.writer(file)
-    writer.writerow(["x", "Pressure", "Ambient"])  # Header
+    writer.writerow(["x (mm)", "Pressure (Pa)", "Ambient (Pa)", "Thrust(g)"])  # Header
     file.flush()
 
     while True:
@@ -56,14 +59,16 @@ with open("arduino_data"+timestamp+".csv", "w", newline="") as file:
             # a Take data
             # b Take Ambient Pressure
             
-            code_orig = input("Enter Code\n")
+            code = input("Enter Code\n")
             
-            if code_orig == take_data_code:
-                x_pos = input("Enter x position\n")
-                code = code_orig
+            if code == take_data_code:
+                if x_pos == -1:
+                    x_pos = input("Enter First x position (mm)\n")
+                else:
+                    print("Last x position was "+ x_pos+" mm\n")
+                    x_pos = input("Enter x position (mm)\n")
+                thrust = input("Enter Thrust (g)\n")
                 
-            else:
-                code = code_orig
                 
             # Clear any backlog of Arduino messages
             while arduino.in_waiting:
@@ -97,14 +102,14 @@ with open("arduino_data"+timestamp+".csv", "w", newline="") as file:
             ambient_press_str = modified_str.split(",", 1)[1]
             
             
-            if code_orig == take_data_code:
-                writer.writerow([x_pos, pitot_press_str, ambient_press_str])
+            if code == take_data_code:
+                writer.writerow([x_pos, pitot_press_str, ambient_press_str, thrust])
                 file.flush()
                 print("Wrote to CSV")
                 
                 
-            elif code_orig == take_amb_p_code:
-                writer.writerow(["-", "-", modified_str])
+            elif code == take_amb_p_code:
+                writer.writerow(["-", "-", modified_str, "-"])
                 file.flush()
                 print("Wrote to CSV")
                     
