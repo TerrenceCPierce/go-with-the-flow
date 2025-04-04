@@ -1,0 +1,5 @@
+x (mm),Pressure (Pa),Ambient (Pa),Thrust(g)
+1,ovf,101977.07,70
+2,ovf,101976.04,
+3,ovf,101973.81,70
+4,ovf,101959.96,ewr

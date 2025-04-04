@@ -67,6 +67,8 @@ void setup()
 
 void loop()
 {
+  //getDataNoPython();
+  
   String command = get_Vals_serial();
   
   if(command == "a"){
@@ -78,6 +80,9 @@ void loop()
     Serial.println("Received b");
     // get baseline pressure
   }
+  
+  //getData();
+  
 
 }
 
@@ -136,20 +141,73 @@ void getData(){
   }
   else
   {
-    float sumPitot = 0;
-    float sumAmbient = 0;
+    double sumPitot = 0;
+    double sumAmbient = 0;
     for (int16_t i = 0; i < pressureCount; i++)
     {
       sumPitot += pressurePitot[i];
       sumAmbient += pressureAmbient[i];
     }
-    float avg_pressurePitot = sumPitot/pressureCount;
-    float avg_pressureAmbient = sumAmbient/pressureCount;
+    double avg_pressurePitot = sumPitot/pressureCount;
+    double avg_pressureAmbient = sumAmbient/pressureCount;
     // Send data to python to write
     while (!Serial.available()) {
     Serial.println("Arduino Data Ready");
     delay(1000);
     }
+    Serial.print("Data:,");
+    Serial.print(avg_pressurePitot);
+    Serial.print(",");
+    Serial.println(avg_pressureAmbient);
+  }
+
+  
+
+  //Wait some time, so that the Dps310 can refill its buffer
+  delay(1000);
+}
+
+void getDataNoPython(){
+  uint8_t pressureCount = 20;
+  float pressurePitot[pressureCount];
+  float pressureAmbient[pressureCount];
+  uint8_t temperatureCount = 20;
+ float temperature[temperatureCount];
+
+  //This function writes the results of continuous measurements to the arrays given as parameters
+  //The parameters temperatureCount and pressureCount should hold the sizes of the arrays temperature and pressure when the function is called
+  //After the end of the function, temperatureCount and pressureCount hold the numbers of values written to the arrays
+  //Note: The Dps310 cannot save more than 32 results. When its result buffer is full, it won't save any new measurement results
+  int16_t ret1 = Dps310PressureSensorPitot.getContResults(temperature, temperatureCount, pressurePitot, pressureCount);
+  int16_t ret2 = Dps310PressureSensorAmbient.getContResults(temperature, temperatureCount, pressureAmbient, pressureCount);
+
+  if (ret1 != 0)
+  {
+    Serial.println();
+    Serial.println();
+    Serial.print("Pitot FAIL! ret = ");
+    Serial.println(ret1);
+  }
+  else if (ret2 != 0)
+  {
+    Serial.println();
+    Serial.println();
+    Serial.print("Ambient FAIL! ret = ");
+    Serial.println(ret2);
+  }
+  else
+  {
+    double sumPitot = 0;
+    double sumAmbient = 0;
+    for (int16_t i = 0; i < pressureCount; i++)
+    {
+      sumPitot += pressurePitot[i];
+      sumAmbient += pressureAmbient[i];
+    }
+    double avg_pressurePitot = sumPitot/pressureCount;
+    double avg_pressureAmbient = sumAmbient/pressureCount;
+    // Send data to python to write
+
     Serial.print("Data:,");
     Serial.print(avg_pressurePitot);
     Serial.print(",");
