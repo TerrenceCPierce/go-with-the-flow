@@ -21,7 +21,7 @@ port_var = tk.StringVar()
 ArduinoConnectStr_var = tk.StringVar()
 ArduinoConnectStr_var.set("Not Connected")
 
-isTest = 1
+isTest = 0
 air_density = 1.298351265 # kg/m^3
 
 global df
