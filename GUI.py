@@ -9,6 +9,9 @@ from datetime import datetime
 import webbrowser
 import csv
 import time
+import pandas as pd
+import numpy as np
+
 
 root = tk.Tk()
 pos_var= tk.StringVar()
@@ -17,6 +20,11 @@ port_var = tk.StringVar()
 
 ArduinoConnectStr_var = tk.StringVar()
 ArduinoConnectStr_var.set("Not Connected")
+
+isTest = 1
+air_density = 1.298351265 # kg/m^3
+
+global df
 
 def open_file():
     file_path = "Users/vpatel07/Downloads/Manual_Sp25VIPSfile.pdf"  # Replace with your file path
@@ -81,9 +89,10 @@ def collect_Callback():
     # print(thrust)
     # writer.writerow([x_pos, 0, 0, thrust])
     # file.flush()
-    isCollected = True;
+    global df
+    notCollected = True
     writer = csv.writer(file)
-    while isCollected:
+    while notCollected:
         if arduino.readline().decode("utf-8").strip('\n').strip('\r') == "Arduino Ready":
                 print("Arduino Ready")
                 
@@ -138,7 +147,8 @@ def collect_Callback():
                 writer.writerow([x_pos, pitot_press_str, ambient_press_str, thrust])
                 file.flush()
                 print("Wrote to CSV")
-                isCollected = False;
+                notCollected = False
+                df = pd.read_csv(file.name)
 
 
 
@@ -232,6 +242,9 @@ position_entry.grid(column=0, row=3, sticky='nsew')
 # position_entry.pack(side='bottom', fill='x', expand=True)
 
 
+# Inspiration from https://stackoverflow.com/questions/67280510/how-to-display-matplotlib-charts-in-tkinter
+
+
 # Pressure Graph Frame
 frame_PX = tk.Frame(root)
 frame_PX.grid(column=0, row=1, sticky='ew')
@@ -239,8 +252,27 @@ frame_PX.grid_columnconfigure(0, weight=1)
 for i in range(1):
     frame_tp.grid_rowconfigure(i, weight=1)
 
-lbl_PX = tk.Label(frame_PX, text='Pressure vs X-Position', bg='#fff')
+lbl_PX = tk.Label(frame_PX, text='Absolute Pressure vs X-Position', bg='#fff')
 lbl_PX.grid(column=0, row=0, sticky='nsew')
+
+if isTest:
+    file_name = r"C:\Users\Terrence\Python\go-with-the-flow\Test Data\arduino_data2025-04-04_09-41-00.csv"
+    df = pd.read_csv(file_name)
+else:
+    df = pd.read_csv(file.name)
+
+fig_press = plt.Figure(figsize=(2, 1), dpi=100)
+scatter = FigureCanvasTkAgg(fig_press, frame_PX)
+scatter.get_tk_widget().grid(column=0, row=1, sticky='nsew')  # use only .grid()
+
+ax1 = fig_press.add_subplot(111)
+ax1.plot(df['x (mm)'], df['Pressure (Pa)'], color='red')
+ax1.set_xlabel('x (mm)', fontsize=8)
+ax1.set_ylabel('Pressure (Pa)', fontsize=7)
+
+fig_press.tight_layout(pad=2.0)  # Fix cutoff labels
+fig_press.set_constrained_layout(True)
+
 
 
 
@@ -255,11 +287,50 @@ for i in range(1):
 lbl_VX = tk.Label(frame_VX, text='Velocity vs X-Position', bg='#fff')
 lbl_VX.grid(column=0, row=0, sticky='nsew')
 
+fig_velo = plt.Figure(figsize=(2, 1), dpi=100)
+scatter = FigureCanvasTkAgg(fig_velo, frame_VX)
+scatter.get_tk_widget().grid(column=0, row=1, sticky='nsew')  # use only .grid()
 
+ax1 = fig_velo.add_subplot(111)
+ax1.plot(df['x (mm)'], np.sqrt(2*(df['Pressure (Pa)']-df['Ambient (Pa)'])/air_density), color='red')
+ax1.set_xlabel('x (mm)', fontsize=8)
+ax1.set_ylabel('V (m/s)', fontsize=7)
+
+fig_velo.tight_layout(pad=2.0)  # Fix cutoff labels
+fig_velo.set_constrained_layout(True)
+
+def display_dataframe_as_table(parent, df_example):
+    # Create Treeview
+    tree = ttk.Treeview(parent, columns=list(df_example.columns), show='headings')
+
+    # Set column headers
+    for col in df_example.columns:
+        tree.heading(col, text=col)
+        tree.column(col, anchor='center', stretch=True)
+
+    # Insert data into Treeview
+    for _, row in df_example.iterrows():
+        tree.insert('', tk.END, values=list(row))
+
+    # Add vertical scrollbar
+    vsb = ttk.Scrollbar(parent, orient="vertical", command=tree.yview)
+    tree.configure(yscrollcommand=vsb.set)
+
+    # Layout
+    tree.grid(row=0, column=0, sticky='nsew')
+    vsb.grid(row=0, column=1, sticky='ns')
+
+    # Configure column/row weights for resizing
+    parent.grid_rowconfigure(0, weight=1)
+    parent.grid_columnconfigure(0, weight=1)
+
+    return tree
 
 # Data Table Frame
 frame_DT = tk.Frame(root)
 frame_DT.grid(column=1, row=1, columnspan=2, rowspan=2, sticky='nsew')
+display_dataframe_as_table(frame_DT, df)
+"""
 for i in range(4):
     frame_DT.grid_columnconfigure(i, weight=1)
 for i in range(3):
@@ -279,5 +350,6 @@ lbl_Pitot_Tube.grid(column=2, row=1, sticky='ew')
 
 lbl_Thrust_DT = tk.Label(frame_DT, text='Thrust (g)')
 lbl_Thrust_DT.grid(column=3, row=1, sticky='ew')
+"""
 
 root.mainloop()
