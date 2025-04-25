@@ -25,6 +25,8 @@ isTest = 0
 air_density = 1.298351265 # kg/m^3
 
 global df
+global file
+
 
 def open_file():
     file_path = "Users/vpatel07/Downloads/Manual_Sp25VIPSfile.pdf"  # Replace with your file path
@@ -67,6 +69,8 @@ def newfile_Callback():
     writer = csv.writer(file)
     writer.writerow(["x (mm)", "Pressure (Pa)", "Ambient (Pa)", "Thrust(g)"])  # Header
     file.flush()
+
+newfile_Callback()
 
 def arduinoConnect_Callback():
     # UPDATE with port number once variable is made

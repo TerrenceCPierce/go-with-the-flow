@@ -26,11 +26,11 @@ void setup()
   int16_t temp_osr = 2;
   //pressure measure rate (value from 0 to 7)
   //2^prs_mr pressure measurement results per second
-  int16_t prs_mr = 2;
+  int16_t prs_mr = 4;
   //pressure oversampling rate (value from 0 to 7)
   //2^prs_osr internal pressure measurements per result
   //A higher value increases precision
-  int16_t prs_osr = 2;
+  int16_t prs_osr = 4;
   //startMeasureBothCont enables background mode
   //temperature and pressure ar measured automatically
   //High precision and hgh measure rates at the same time are not available.
@@ -68,7 +68,7 @@ void setup()
 void loop()
 {
   //getDataNoPython();
-  
+
   String command = get_Vals_serial();
   
   if(command == "a"){
@@ -82,7 +82,7 @@ void loop()
   }
   
   //getData();
-  
+ 
 
 }
 
