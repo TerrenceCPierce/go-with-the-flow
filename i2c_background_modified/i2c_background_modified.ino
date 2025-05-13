@@ -4,6 +4,8 @@
 Dps310 Dps310PressureSensorPitot = Dps310();
 Dps310 Dps310PressureSensorAmbient = Dps310();
 
+int delayAmount = 750;
+
 void setup()
 {
   Serial.begin(115200);
@@ -69,20 +71,21 @@ void loop()
 {
   //getDataNoPython();
 
-  String command = get_Vals_serial();
   
-  if(command == "a"){
+  String command = get_Vals_serial();
+
+  if (command == "a") {
     Serial.println("Received a");
     // get data
     getData();
   }
-   else if(command == "b"){
+  else if (command == "b") {
     Serial.println("Received b");
     // get baseline pressure
   }
-  
+
   //getData();
- 
+  
 
 }
 
@@ -91,7 +94,7 @@ String get_Vals_serial() {
   // Need to tell Python script it's ready
   while (!Serial.available()) {
     Serial.println("Arduino Ready");
-    delay(1000);
+    delay(delayAmount);
   }
 
   //Serial.println("Exited While");
@@ -111,111 +114,140 @@ String get_Vals_serial() {
   }
 }
 
-void getData(){
-  uint8_t pressureCount = 20;
-  float pressurePitot[pressureCount];
-  float pressureAmbient[pressureCount];
-  uint8_t temperatureCount = 20;
- float temperature[temperatureCount];
+void getData() {
+  int num_samples = 5;
+  double dataArr1[num_samples];
+  double dataArr2[num_samples];
 
-  //This function writes the results of continuous measurements to the arrays given as parameters
-  //The parameters temperatureCount and pressureCount should hold the sizes of the arrays temperature and pressure when the function is called
-  //After the end of the function, temperatureCount and pressureCount hold the numbers of values written to the arrays
-  //Note: The Dps310 cannot save more than 32 results. When its result buffer is full, it won't save any new measurement results
-  int16_t ret1 = Dps310PressureSensorPitot.getContResults(temperature, temperatureCount, pressurePitot, pressureCount);
-  int16_t ret2 = Dps310PressureSensorAmbient.getContResults(temperature, temperatureCount, pressureAmbient, pressureCount);
+  for (int16_t i = 0; i < num_samples; i++)
+  {
+    uint8_t pressureCount = 30;
+    float pressurePitot[pressureCount];
+    float pressureAmbient[pressureCount];
+    uint8_t temperatureCount = 30;
+    float temperature[temperatureCount];
+    double temp[2];
+    retData(temperature, temperatureCount, pressurePitot, pressureAmbient, pressureCount, temp);
+    dataArr1[i] = temp[0];
+    dataArr2[i] = temp[1];
+    //Serial.print("Data:,");
+    //Serial.print(temp[0]);
+    //Serial.print(",");
+    //Serial.println(temp[1]);
+  }
+  double avg_pressurePitot = findMedian(dataArr1, num_samples);
+  double avg_pressureAmbient = findMedian(dataArr2, num_samples);
+  // Send data to python to write
 
-  if (ret1 != 0)
-  {
-    Serial.println();
-    Serial.println();
-    Serial.print("Pitot FAIL! ret = ");
-    Serial.println(ret1);
-  }
-  else if (ret2 != 0)
-  {
-    Serial.println();
-    Serial.println();
-    Serial.print("Ambient FAIL! ret = ");
-    Serial.println(ret2);
-  }
-  else
-  {
-    double sumPitot = 0;
-    double sumAmbient = 0;
-    for (int16_t i = 0; i < pressureCount; i++)
-    {
-      sumPitot += pressurePitot[i];
-      sumAmbient += pressureAmbient[i];
-    }
-    double avg_pressurePitot = sumPitot/pressureCount;
-    double avg_pressureAmbient = sumAmbient/pressureCount;
-    // Send data to python to write
-    while (!Serial.available()) {
+  while (!Serial.available()) {
     Serial.println("Arduino Data Ready");
-    delay(1000);
-    }
-    Serial.print("Data:,");
-    Serial.print(avg_pressurePitot);
-    Serial.print(",");
-    Serial.println(avg_pressureAmbient);
+    delay(delayAmount);
   }
+  Serial.print("Data:,");
+  Serial.print(avg_pressurePitot);
+  Serial.print(",");
+  Serial.println(avg_pressureAmbient);
 
-  
+
 
   //Wait some time, so that the Dps310 can refill its buffer
-  delay(1000);
+  //delay(delayAmount);
 }
 
-void getDataNoPython(){
-  uint8_t pressureCount = 20;
-  float pressurePitot[pressureCount];
-  float pressureAmbient[pressureCount];
-  uint8_t temperatureCount = 20;
- float temperature[temperatureCount];
+void getDataNoPython() {
+  int num_samples = 3;
+  double dataArr1[num_samples];
+  double dataArr2[num_samples];
 
-  //This function writes the results of continuous measurements to the arrays given as parameters
-  //The parameters temperatureCount and pressureCount should hold the sizes of the arrays temperature and pressure when the function is called
-  //After the end of the function, temperatureCount and pressureCount hold the numbers of values written to the arrays
-  //Note: The Dps310 cannot save more than 32 results. When its result buffer is full, it won't save any new measurement results
-  int16_t ret1 = Dps310PressureSensorPitot.getContResults(temperature, temperatureCount, pressurePitot, pressureCount);
-  int16_t ret2 = Dps310PressureSensorAmbient.getContResults(temperature, temperatureCount, pressureAmbient, pressureCount);
-
-  if (ret1 != 0)
+  for (int16_t i = 0; i < num_samples; i++)
   {
-    Serial.println();
-    Serial.println();
-    Serial.print("Pitot FAIL! ret = ");
-    Serial.println(ret1);
+    uint8_t pressureCount = 30;
+    float pressurePitot[pressureCount];
+    float pressureAmbient[pressureCount];
+    uint8_t temperatureCount = 30;
+    float temperature[temperatureCount];
+    double temp[2];
+    retData(temperature, temperatureCount, pressurePitot, pressureAmbient, pressureCount, temp);
+    dataArr1[i] = temp[0];
+    dataArr2[i] = temp[1];
+    //Serial.print("Data:,");
+    //Serial.print(temp[0]);
+    //Serial.print(",");
+    //Serial.println(temp[1]);
   }
-  else if (ret2 != 0)
-  {
-    Serial.println();
-    Serial.println();
-    Serial.print("Ambient FAIL! ret = ");
-    Serial.println(ret2);
-  }
-  else
-  {
-    double sumPitot = 0;
-    double sumAmbient = 0;
-    for (int16_t i = 0; i < pressureCount; i++)
-    {
-      sumPitot += pressurePitot[i];
-      sumAmbient += pressureAmbient[i];
-    }
-    double avg_pressurePitot = sumPitot/pressureCount;
-    double avg_pressureAmbient = sumAmbient/pressureCount;
-    // Send data to python to write
+  double avg_pressurePitot = findMedian(dataArr1, num_samples);
+  double avg_pressureAmbient = findMedian(dataArr2, num_samples);
+  // Send data to python to write
+  Serial.print("Data:,");
+  Serial.print(avg_pressurePitot);
+  Serial.print(",");
+  Serial.println(avg_pressureAmbient);
 
-    Serial.print("Data:,");
-    Serial.print(avg_pressurePitot);
-    Serial.print(",");
-    Serial.println(avg_pressureAmbient);
-  }
 
-  
 
   //Wait some time, so that the Dps310 can refill its buffer
-  delay(1000);
+  //delay(delayAmount);
+}
+
+float findMedian(double arr[], int size) {
+  //bubble sort from https://www.geeksforgeeks.org/bubble-sort/
+  int i, j;
+  for (i = 0; i < size - 1; i++) {
+    // Last i elements are already
+    // in place
+    for (j = 0; j < size - i - 1; j++) {
+      if (arr[j] > arr[j + 1]) {
+        double temp = arr[j];
+        arr[j] = arr[j + 1];
+        arr[j + 1] = temp;
+      }
+    }
+  }
+
+  if (!(size % (2))) {
+    return (arr[(int)(size / 2)] + arr[(int)(size / 2 + 1)]) / 2;
+  }
+  else {
+    return arr[(int)(size / 2)];
+  }
+}
+
+
+void retData(float* temperature, uint8_t temperatureCount, float* pressurePitot, float* pressureAmbient, uint8_t pressureCount, double* result) {
+  double* dataArr = new double[2];
+  int16_t ret1 = Dps310PressureSensorPitot.getContResults(temperature, temperatureCount, pressurePitot, pressureCount);
+  int16_t ret2 = Dps310PressureSensorAmbient.getContResults(temperature, temperatureCount, pressureAmbient, pressureCount);
+  while(ret1 != 0 || ret2 != 0){
+    delay(delayAmount);
+    Serial.println("Retrying");
+    ret1 = Dps310PressureSensorPitot.getContResults(temperature, temperatureCount, pressurePitot, pressureCount);
+    ret2 = Dps310PressureSensorAmbient.getContResults(temperature, temperatureCount, pressureAmbient, pressureCount);
+  }
+
+  double sumPitot = 0;
+  double sumAmbient = 0;
+  for (int16_t i = 0; i < pressureCount; i++)
+  {
+    sumPitot += pressurePitot[i];
+    sumAmbient += pressureAmbient[i];
+    //Serial.print("Data:,");
+    //Serial.print(sumPitot);
+    //Serial.print(",");
+    //Serial.println(sumAmbient);
+  }
+  double avg_pressurePitot = sumPitot / (float)pressureCount;
+  double avg_pressureAmbient = sumAmbient / (float)pressureCount;
+  result[0] = avg_pressurePitot;
+  result[1] = avg_pressureAmbient;
+
+  //Serial.print("Data:,");
+  //Serial.print(avg_pressurePitot);
+  //Serial.print(",");
+  //Serial.println(avg_pressureAmbient);
+  delay(delayAmount);
+  //delete temperature;
+  //delete pressurePitot;
+  //delete pressureAmbient;
+  //return dataArr;
+
 }

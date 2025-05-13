@@ -21,7 +21,7 @@ port_var = tk.StringVar()
 ArduinoConnectStr_var = tk.StringVar()
 ArduinoConnectStr_var.set("Not Connected")
 
-isTest = 0
+isTest = 1
 air_density = 1.298351265 # kg/m^3
 
 global df
@@ -260,7 +260,8 @@ lbl_PX = tk.Label(frame_PX, text='Absolute Pressure vs X-Position', bg='#fff')
 lbl_PX.grid(column=0, row=0, sticky='nsew')
 
 if isTest:
-    file_name = r"C:\Users\Terrence\Python\go-with-the-flow\Test Data\arduino_data2025-04-04_09-41-00.csv"
+    #file_name = r"C:\Users\Terrence\Python\go-with-the-flow\Test Data\arduino_data2025-04-04_09-41-00.csv"
+    file_name = r"C:\Users\t4mar\Documents\VIP_Team\go-with-the-flow\Test Data\arduino_data2025-04-04_09-41-00.csv"
     df = pd.read_csv(file_name)
 else:
     df = pd.read_csv(file.name)
@@ -295,10 +296,10 @@ fig_velo = plt.Figure(figsize=(2, 1), dpi=100)
 scatter = FigureCanvasTkAgg(fig_velo, frame_VX)
 scatter.get_tk_widget().grid(column=0, row=1, sticky='nsew')  # use only .grid()
 
-ax1 = fig_velo.add_subplot(111)
-ax1.plot(df['x (mm)'], np.sqrt(2*(df['Pressure (Pa)']-df['Ambient (Pa)'])/air_density), color='red')
-ax1.set_xlabel('x (mm)', fontsize=8)
-ax1.set_ylabel('V (m/s)', fontsize=7)
+ax2 = fig_velo.add_subplot(111)
+ax2.plot(df['x (mm)'], np.sqrt(np.maximum(0, 2*(df['Pressure (Pa)'] - df['Ambient (Pa)']) / air_density)), color='red')
+ax2.set_xlabel('x (mm)', fontsize=8)
+ax2.set_ylabel('V (m/s)', fontsize=7)
 
 fig_velo.tight_layout(pad=2.0)  # Fix cutoff labels
 fig_velo.set_constrained_layout(True)
@@ -333,7 +334,8 @@ def display_dataframe_as_table(parent, df_example):
 # Data Table Frame
 frame_DT = tk.Frame(root)
 frame_DT.grid(column=1, row=1, columnspan=2, rowspan=2, sticky='nsew')
-display_dataframe_as_table(frame_DT, df)
+table = display_dataframe_as_table(frame_DT, df)
+#print("Looping root")
 """
 for i in range(4):
     frame_DT.grid_columnconfigure(i, weight=1)
@@ -356,4 +358,39 @@ lbl_Thrust_DT = tk.Label(frame_DT, text='Thrust (g)')
 lbl_Thrust_DT.grid(column=3, row=1, sticky='ew')
 """
 
+def update_gui():
+    try:
+        # Reload CSV (if it exists and has data)
+        if os.path.exists(file.name):
+            new_df = pd.read_csv(file.name)
+
+            # --- Update Pressure Graph ---
+            ax1.clear()
+            ax1.plot(new_df['x (mm)'], new_df['Pressure (Pa)'], color='red')
+            ax1.set_xlabel('x (mm)', fontsize=8)
+            ax1.set_ylabel('Pressure (Pa)', fontsize=7)
+            fig_press.canvas.draw()
+
+            # --- Update Velocity Graph ---
+            ax2.clear()
+            ax2.plot(new_df['x (mm)'], np.sqrt(np.maximum(0, 2*(new_df['Pressure (Pa)'] - new_df['Ambient (Pa)']) / air_density)), color='red')
+            ax2.set_xlabel('x (mm)', fontsize=8)
+            ax2.set_ylabel('V (m/s)', fontsize=7)
+            fig_velo.canvas.draw()
+
+            # --- Update Table ---
+            for row in table.get_children():
+                table.delete(row)
+            for _, row in new_df.iterrows():
+                table.insert('', tk.END, values=list(row))
+
+        # Schedule the next update
+        root.after(1000, update_gui)  # Every 1000 ms
+
+    except Exception as e:
+        print(f"Error during update: {e}")
+        root.after(2000, update_gui)  # Retry after 2 seconds if something went wrong
+
+
+update_gui()
 root.mainloop()
