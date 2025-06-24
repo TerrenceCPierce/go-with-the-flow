@@ -4,7 +4,7 @@
 Dps310 Dps310PressureSensorPitot = Dps310();
 Dps310 Dps310PressureSensorAmbient = Dps310();
 
-int delayAmount = 750;
+int delayAmount = 1000;
 
 void setup()
 {
@@ -28,7 +28,7 @@ void setup()
   int16_t temp_osr = 2;
   //pressure measure rate (value from 0 to 7)
   //2^prs_mr pressure measurement results per second
-  int16_t prs_mr = 4;
+  int16_t prs_mr = 5;
   //pressure oversampling rate (value from 0 to 7)
   //2^prs_osr internal pressure measurements per result
   //A higher value increases precision
@@ -115,19 +115,23 @@ String get_Vals_serial() {
 }
 
 void getData() {
-  int num_samples = 5;
+  int num_samples = 3;
   double dataArr1[num_samples];
   double dataArr2[num_samples];
 
   for (int16_t i = 0; i < num_samples; i++)
   {
-    uint8_t pressureCount = 30;
+    uint8_t pressureCount = 64;
     float pressurePitot[pressureCount];
     float pressureAmbient[pressureCount];
-    uint8_t temperatureCount = 30;
+    uint8_t temperatureCount = 64;
     float temperature[temperatureCount];
     double temp[2];
+    unsigned long time1 = millis();
     retData(temperature, temperatureCount, pressurePitot, pressureAmbient, pressureCount, temp);
+    unsigned long time2 = millis();
+    //Serial.print("Time is ");
+    //Serial.println(time2 - time1);
     dataArr1[i] = temp[0];
     dataArr2[i] = temp[1];
     //Serial.print("Data:,");
@@ -215,8 +219,13 @@ float findMedian(double arr[], int size) {
 
 void retData(float* temperature, uint8_t temperatureCount, float* pressurePitot, float* pressureAmbient, uint8_t pressureCount, double* result) {
   double* dataArr = new double[2];
+  unsigned long time1 = millis();
   int16_t ret1 = Dps310PressureSensorPitot.getContResults(temperature, temperatureCount, pressurePitot, pressureCount);
   int16_t ret2 = Dps310PressureSensorAmbient.getContResults(temperature, temperatureCount, pressureAmbient, pressureCount);
+  unsigned long time2 = millis();
+  //Serial.print("Read Time is ");
+  //Serial.println(time2 - time1);
+  
   while(ret1 != 0 || ret2 != 0){
     delay(delayAmount);
     Serial.println("Retrying");
