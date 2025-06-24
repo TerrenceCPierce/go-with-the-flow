@@ -225,7 +225,7 @@ port_entry.grid(column=1, row=2, sticky='nsew')
 # Thrust/Position Frame
 frame_tp = tk.Frame(root)
 frame_tp.grid(column=3, row=1, sticky='ew')
-frame_tp.grid_columnconfigure(0, weight=1)
+frame_tp.grid_columnconfigure(0, weight=1, minsize=200)
 for i in range(4):
     frame_tp.grid_rowconfigure(i, weight=1)
 
@@ -256,7 +256,7 @@ frame_PX.grid_columnconfigure(0, weight=1)
 for i in range(1):
     frame_tp.grid_rowconfigure(i, weight=1)
 
-lbl_PX = tk.Label(frame_PX, text='Absolute Pressure vs X-Position', bg='#fff')
+lbl_PX = tk.Label(frame_PX, text='Absolute Pressure vs X-Position', bg='#fff', font=("Arial",20))
 lbl_PX.grid(column=0, row=0, sticky='nsew')
 
 if isTest:
@@ -266,14 +266,14 @@ if isTest:
 else:
     df = pd.read_csv(file.name)
 
-fig_press = plt.Figure(figsize=(2, 1), dpi=100)
+fig_press = plt.Figure(figsize=(2, 2), dpi=100)
 scatter = FigureCanvasTkAgg(fig_press, frame_PX)
 scatter.get_tk_widget().grid(column=0, row=1, sticky='nsew')  # use only .grid()
 
 ax1 = fig_press.add_subplot(111)
 ax1.plot(df['x (mm)'], df['Pressure (Pa)'], color='red')
-ax1.set_xlabel('x (mm)', fontsize=8)
-ax1.set_ylabel('Pressure (Pa)', fontsize=7)
+ax1.set_xlabel('x (mm)', fontsize=15)
+ax1.set_ylabel('Pressure (Pa)', fontsize=15)
 
 fig_press.tight_layout(pad=2.0)  # Fix cutoff labels
 fig_press.set_constrained_layout(True)
@@ -285,21 +285,21 @@ fig_press.set_constrained_layout(True)
 # Velocity Graph Frame
 frame_VX = tk.Frame(root)
 frame_VX.grid(column=0, row=2, rowspan=2, sticky='nsew')
-frame_VX.grid_columnconfigure(0, weight=1)
+frame_VX.grid_columnconfigure(0, weight=1, minsize=800)
 for i in range(1):
     frame_tp.grid_rowconfigure(i, weight=1)
 
-lbl_VX = tk.Label(frame_VX, text='Velocity vs X-Position', bg='#fff')
+lbl_VX = tk.Label(frame_VX, text='Velocity vs X-Position', bg='#fff', font=("Arial",20))
 lbl_VX.grid(column=0, row=0, sticky='nsew')
 
-fig_velo = plt.Figure(figsize=(2, 1), dpi=100)
+fig_velo = plt.Figure(figsize=(2, 2), dpi=100)
 scatter = FigureCanvasTkAgg(fig_velo, frame_VX)
 scatter.get_tk_widget().grid(column=0, row=1, sticky='nsew')  # use only .grid()
 
 ax2 = fig_velo.add_subplot(111)
 ax2.plot(df['x (mm)'], np.sqrt(np.maximum(0, 2*(df['Pressure (Pa)'] - df['Ambient (Pa)']) / air_density)), color='red')
-ax2.set_xlabel('x (mm)', fontsize=8)
-ax2.set_ylabel('V (m/s)', fontsize=7)
+ax2.set_xlabel('x (mm)', fontsize=15)
+ax2.set_ylabel('V (m/s)', fontsize=15)
 
 fig_velo.tight_layout(pad=2.0)  # Fix cutoff labels
 fig_velo.set_constrained_layout(True)
@@ -311,7 +311,7 @@ def display_dataframe_as_table(parent, df_example):
     # Set column headers
     for col in df_example.columns:
         tree.heading(col, text=col)
-        tree.column(col, anchor='center', stretch=True)
+        tree.column(col, anchor='center', minwidth=0, width=100, stretch=False)
 
     # Insert data into Treeview
     for _, row in df_example.iterrows():
