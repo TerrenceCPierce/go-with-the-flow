@@ -5,6 +5,7 @@ import webbrowser
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import serial 
+import serial.tools.list_ports
 from datetime import datetime
 import webbrowser
 import csv
@@ -21,7 +22,7 @@ port_var = tk.StringVar()
 ArduinoConnectStr_var = tk.StringVar()
 ArduinoConnectStr_var.set("Not Connected")
 
-isTest = 1
+isTest = 0
 air_density = 1.298351265 # kg/m^3
 
 global df
@@ -72,14 +73,36 @@ def newfile_Callback():
 
 newfile_Callback()
 
+
+
+
 def arduinoConnect_Callback():
-    # UPDATE with port number once variable is made
     global arduino
-    #print('COM'+ port_var.get())
     
+    try:
+        port = port_var.get().strip()  # Get the port string from GUI input
+        
+        # If the user only provides a number (e.g., "3"), assume it's a Windows COM port
+        if port.isdigit():
+            port = 'COM' + port  
+        
+        # Try to open serial connection
+        arduino = serial.Serial(port=port, baudrate=115200, timeout=0.1)
+        
+        ArduinoConnectStr_var.set(f"Connected to {port}")
     
-    arduino = serial.Serial(port='COM'+ port_var.get(), baudrate=115200, timeout=.1)
-    ArduinoConnectStr_var.set("Connected") #Will throw error if doesn't work, find better way to communicate through GUI
+    except serial.SerialException as e:
+        ArduinoConnectStr_var.set(f"Connection failed: {e}")
+        arduino = None
+
+
+
+
+ports = serial.tools.list_ports.comports()
+for port in ports:
+    print(port.device, "-", port.description)
+
+
 
 def labdetails_Callback():
     webbrowser.open_new(r"https://drive.google.com/file/d/1WX5xK7Xqua2Vz-lO5Z7_klDieToz0dC8/view?usp=sharing")
