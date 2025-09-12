@@ -74,8 +74,6 @@ def newfile_Callback():
 newfile_Callback()
 
 
-
-
 def arduinoConnect_Callback():
     global arduino
     
@@ -94,8 +92,6 @@ def arduinoConnect_Callback():
     except serial.SerialException as e:
         ArduinoConnectStr_var.set(f"Connection failed: {e}")
         arduino = None
-
-
 
 
 ports = serial.tools.list_ports.comports()
@@ -185,8 +181,14 @@ root.geometry('1440x900')
 root.configure(bg='#f8f8fb')
 
 # Grid
-for i in range(4):
-    root.grid_columnconfigure(i, weight=1)
+'''for i in range(4):
+    root.grid_columnconfigure(i, weight=1)'''
+
+root.columnconfigure(0, weight=3)
+root.grid_columnconfigure(1, weight=3)
+root.grid_columnconfigure(2, weight=1)
+root.grid_columnconfigure(3, weight=1)
+
 for j in range(4):
     root.grid_rowconfigure(j, weight=1)
 
@@ -202,36 +204,36 @@ btn_lab_details.grid(column=3, row=0, sticky='ew')
 
 # Widgets
 lbl_title = tk.Label(root, text='Thrust Stand Experiment', bg='white', fg='black')
-lbl_title.grid(column=0, row=0, sticky='nsew')
+lbl_title.grid(column=0, row=0, columnspan=2, sticky='nsew')
 
 # Collect Button
 btn_collect = tk.Button(root, text='Collect', bg='#B0CA99', command= collect_Callback)
-btn_collect.grid(column=1, row=3,  sticky='ew')
-
-btn_connect = tk.Button(root, text='Connect', bg='#B0CA99', command= arduinoConnect_Callback)
-btn_connect.grid(column=1, row=4,  sticky='ew')
+btn_collect.grid(column=1, row=3, sticky='ew')
 
 
 
 # Arduino Status
 frame_status = tk.Frame(root)
-frame_status.grid(column=2, row=3, sticky='nsew')
+frame_status.grid(column=0, row=3, sticky='nsew')
 for i in range(2):
     frame_status.grid_columnconfigure(i, weight=1)
-for j in range(2):
+for j in range(3):
     frame_status.grid_rowconfigure(j, weight=1)
 
-lbl_arduino = tk.Label(frame_status, text='Arduino Status:')
-lbl_arduino.grid(column=0, row=0, columnspan=2, sticky='nsew')
+lbl_arduino = tk.Label(frame_status, text='Arduino Status:', fg='red')
+lbl_arduino.grid(column=0, row=0, sticky='ew')
 
 lbl_not_conn = tk.Label(frame_status, textvariable=ArduinoConnectStr_var)
-lbl_not_conn.grid(column=0, row=1, sticky='nw')
+lbl_not_conn.grid(column=1, row=0, sticky='ew')
 
 lbl_thrust = tk.Label(frame_status, text='Port:')
-lbl_thrust.grid(column=0, row=2, sticky='ew')
+lbl_thrust.grid(column=0, row=1, sticky='ew')
 
 port_entry = tk.Entry(frame_status, textvariable=port_var)
-port_entry.grid(column=1, row=2, sticky='nsew')
+port_entry.grid(column=1, row=1, sticky='ew')
+
+btn_connect = tk.Button(frame_status, text='Connect', bg='#B0CA99', command= arduinoConnect_Callback)
+btn_connect.grid(column=0, row=2, columnspan=2, sticky='ew')
 
 #lbl_connected = tk.Label(frame_status, text='Connected')
 #lbl_connected.grid(column=0, row=1, sticky='nw')
@@ -247,7 +249,7 @@ port_entry.grid(column=1, row=2, sticky='nsew')
 
 # Thrust/Position Frame
 frame_tp = tk.Frame(root)
-frame_tp.grid(column=3, row=1, sticky='ew')
+frame_tp.grid(column=2, row=3, sticky='ew')
 frame_tp.grid_columnconfigure(0, weight=1, minsize=200)
 for i in range(4):
     frame_tp.grid_rowconfigure(i, weight=1)
@@ -274,7 +276,7 @@ position_entry.grid(column=0, row=3, sticky='nsew')
 
 # Pressure Graph Frame
 frame_PX = tk.Frame(root)
-frame_PX.grid(column=0, row=1, sticky='ew')
+frame_PX.grid(column=0, row=1, columnspan=2, sticky='ew')
 frame_PX.grid_columnconfigure(0, weight=1)
 for i in range(1):
     frame_tp.grid_rowconfigure(i, weight=1)
@@ -307,8 +309,8 @@ fig_press.set_constrained_layout(True)
 
 # Velocity Graph Frame
 frame_VX = tk.Frame(root)
-frame_VX.grid(column=0, row=2, rowspan=2, sticky='nsew')
-frame_VX.grid_columnconfigure(0, weight=1, minsize=800)
+frame_VX.grid(column=0, row=2, columnspan=2, sticky='ew')
+frame_VX.grid_columnconfigure(0, weight=1)
 for i in range(1):
     frame_tp.grid_rowconfigure(i, weight=1)
 
@@ -334,7 +336,7 @@ def display_dataframe_as_table(parent, df_example):
     # Set column headers
     for col in df_example.columns:
         tree.heading(col, text=col)
-        tree.column(col, anchor='center', minwidth=0, width=100, stretch=False)
+        tree.column(col, anchor='center', minwidth=0, width=150, stretch=True)
 
     # Insert data into Treeview
     for _, row in df_example.iterrows():
@@ -356,7 +358,7 @@ def display_dataframe_as_table(parent, df_example):
 
 # Data Table Frame
 frame_DT = tk.Frame(root)
-frame_DT.grid(column=1, row=1, columnspan=2, rowspan=2, sticky='nsew')
+frame_DT.grid(column=2, row=1, columnspan=2, rowspan=2, sticky='nsew')
 table = display_dataframe_as_table(frame_DT, df)
 #print("Looping root")
 """
