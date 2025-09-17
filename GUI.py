@@ -49,6 +49,7 @@ thrust
 position
 '''
 def newfile_Callback():
+    
     global file
     global timestamp
     try:
@@ -178,37 +179,39 @@ def collect_Callback():
 # Window
 root.title('Thrust Stand Experiment')
 root.geometry('1440x900')
-root.configure(bg='#f8f8fb')
+#root.configure(bg="#e9e7e8")
 
 # Grid
 '''for i in range(4):
     root.grid_columnconfigure(i, weight=1)'''
 
-root.columnconfigure(0, weight=3)
+root.grid_columnconfigure(0, weight=3)
 root.grid_columnconfigure(1, weight=3)
 root.grid_columnconfigure(2, weight=1)
 root.grid_columnconfigure(3, weight=1)
 
-for j in range(4):
-    root.grid_rowconfigure(j, weight=1)
+root.grid_rowconfigure(0, weight=1)
+root.grid_rowconfigure(1, weight=3)
+root.grid_rowconfigure(2, weight=3)
+root.grid_rowconfigure(3, weight=3)
 
 # Buttons
-btn_new_file = tk.Button(root, text='New File', bg='#1E90FF', command=newfile_Callback)
+btn_new_file = tk.Button(root, text='New File', command=newfile_Callback)
 btn_new_file.grid(column=2, row=0, sticky='ew')
 
-btn_exit = tk.Button(root, text='Exit', bg='#D9D9D9', command=root.quit)
-btn_exit.grid(column=3, row=3, sticky='ew')
+btn_exit = tk.Button(root, text='Exit', command=root.quit, bg='#e3e1e1')
+btn_exit.grid(column=3, row=3, sticky='nsew', pady=80, padx=10)
 
 btn_lab_details = tk.Button(root, text='Lab Details', bg='#B4DCEB', command=labdetails_Callback)
 btn_lab_details.grid(column=3, row=0, sticky='ew')
 
 # Widgets
-lbl_title = tk.Label(root, text='Thrust Stand Experiment', bg='white', fg='black')
-lbl_title.grid(column=0, row=0, columnspan=2, sticky='nsew')
+lbl_title = tk.Label(root, text='Thrust Stand Experiment', bg='white', fg='black', font=("Helvetica", 30, "bold"))
+lbl_title.grid(column=0, row=0, columnspan=2, sticky='nsew', padx=10, pady=30)
 
 # Collect Button
-btn_collect = tk.Button(root, text='Collect', bg='#B0CA99', command= collect_Callback)
-btn_collect.grid(column=1, row=3, sticky='ew')
+btn_collect = tk.Button(root, text='Collect', command= collect_Callback, bg='#e3e1e1')
+btn_collect.grid(column=1, row=3, sticky='ew', pady=40, padx=10)
 
 
 
@@ -220,10 +223,11 @@ for i in range(2):
 for j in range(3):
     frame_status.grid_rowconfigure(j, weight=1)
 
-lbl_arduino = tk.Label(frame_status, text='Arduino Status:', fg='red')
-lbl_arduino.grid(column=0, row=0, sticky='ew')
+lbl_arduino = tk.Label(frame_status, text='Arduino Status:')
+lbl_arduino.grid(column=0, row=0, sticky='nsew')
 
-lbl_not_conn = tk.Label(frame_status, textvariable=ArduinoConnectStr_var)
+lbl_not_conn = tk.Label(frame_status, textvariable=ArduinoConnectStr_var, wraplength=300)  
+#add dynamic wraplength later
 lbl_not_conn.grid(column=1, row=0, sticky='ew')
 
 lbl_thrust = tk.Label(frame_status, text='Port:')
@@ -249,7 +253,7 @@ btn_connect.grid(column=0, row=2, columnspan=2, sticky='ew')
 
 # Thrust/Position Frame
 frame_tp = tk.Frame(root)
-frame_tp.grid(column=2, row=3, sticky='ew')
+frame_tp.grid(column=2, row=3, sticky='nsew')
 frame_tp.grid_columnconfigure(0, weight=1, minsize=200)
 for i in range(4):
     frame_tp.grid_rowconfigure(i, weight=1)
@@ -267,7 +271,7 @@ lbl_position = tk.Label(frame_tp, text="Position:")
 lbl_position.grid(column=0, row=2, sticky='ew')
 
 position_entry = tk.Entry(frame_tp, textvariable=pos_var)
-position_entry.grid(column=0, row=3, sticky='nsew')
+position_entry.grid(column=0, row=3, sticky='ew')
 # position_entry.pack(side='bottom', fill='x', expand=True)
 
 
@@ -276,12 +280,12 @@ position_entry.grid(column=0, row=3, sticky='nsew')
 
 # Pressure Graph Frame
 frame_PX = tk.Frame(root)
-frame_PX.grid(column=0, row=1, columnspan=2, sticky='ew')
+frame_PX.grid(column=0, row=1, columnspan=2, sticky='nsew', padx=10)
 frame_PX.grid_columnconfigure(0, weight=1)
 for i in range(1):
     frame_tp.grid_rowconfigure(i, weight=1)
 
-lbl_PX = tk.Label(frame_PX, text='Absolute Pressure vs X-Position', bg='#fff', font=("Arial",20))
+lbl_PX = tk.Label(frame_PX, text='Absolute Pressure vs X-Position', bg='#fff', font=("Arial",20), pady=15)
 lbl_PX.grid(column=0, row=0, sticky='nsew')
 
 if isTest:
@@ -291,16 +295,16 @@ if isTest:
 else:
     df = pd.read_csv(file.name)
 
-fig_press = plt.Figure(figsize=(2, 2), dpi=100)
+fig_press = plt.Figure(figsize=(2.5,2.5), dpi=100)
 scatter = FigureCanvasTkAgg(fig_press, frame_PX)
 scatter.get_tk_widget().grid(column=0, row=1, sticky='nsew')  # use only .grid()
 
 ax1 = fig_press.add_subplot(111)
 ax1.plot(df['x (mm)'], df['Pressure (Pa)'], color='red')
 ax1.set_xlabel('x (mm)', fontsize=15)
-ax1.set_ylabel('Pressure (Pa)', fontsize=15)
+ax1.set_ylabel('Pressure (Pa)', fontsize=25, labelpad=0)
 
-fig_press.tight_layout(pad=2.0)  # Fix cutoff labels
+fig_press.tight_layout(pad=3.0)  # Fix cutoff labels
 fig_press.set_constrained_layout(True)
 
 
@@ -309,22 +313,22 @@ fig_press.set_constrained_layout(True)
 
 # Velocity Graph Frame
 frame_VX = tk.Frame(root)
-frame_VX.grid(column=0, row=2, columnspan=2, sticky='ew')
+frame_VX.grid(column=0, row=2, columnspan=2, sticky='nsew', padx=10)
 frame_VX.grid_columnconfigure(0, weight=1)
 for i in range(1):
     frame_tp.grid_rowconfigure(i, weight=1)
 
-lbl_VX = tk.Label(frame_VX, text='Velocity vs X-Position', bg='#fff', font=("Arial",20))
-lbl_VX.grid(column=0, row=0, sticky='nsew')
+lbl_VX = tk.Label(frame_VX, text='Velocity vs X-Position', bg='#ffffff', font=("Arial",20), pady=15)
+lbl_VX.grid(column=0, row=0, sticky='nsew',)
 
-fig_velo = plt.Figure(figsize=(2, 2), dpi=100)
+fig_velo = plt.Figure(figsize=(2.5, 2.5), dpi=100)
 scatter = FigureCanvasTkAgg(fig_velo, frame_VX)
 scatter.get_tk_widget().grid(column=0, row=1, sticky='nsew')  # use only .grid()
 
 ax2 = fig_velo.add_subplot(111)
 ax2.plot(df['x (mm)'], np.sqrt(np.maximum(0, 2*(df['Pressure (Pa)'] - df['Ambient (Pa)']) / air_density)), color='red')
 ax2.set_xlabel('x (mm)', fontsize=15)
-ax2.set_ylabel('V (m/s)', fontsize=15)
+ax2.set_ylabel('V (m/s)', fontsize=25)
 
 fig_velo.tight_layout(pad=2.0)  # Fix cutoff labels
 fig_velo.set_constrained_layout(True)
@@ -336,7 +340,7 @@ def display_dataframe_as_table(parent, df_example):
     # Set column headers
     for col in df_example.columns:
         tree.heading(col, text=col)
-        tree.column(col, anchor='center', minwidth=0, width=150, stretch=True)
+        tree.column(col, anchor='center', minwidth=0, width=120, stretch=True)
 
     # Insert data into Treeview
     for _, row in df_example.iterrows():
@@ -359,6 +363,7 @@ def display_dataframe_as_table(parent, df_example):
 # Data Table Frame
 frame_DT = tk.Frame(root)
 frame_DT.grid(column=2, row=1, columnspan=2, rowspan=2, sticky='nsew')
+frame_DT.configure(bg='black', bd=3, relief='sunken')
 table = display_dataframe_as_table(frame_DT, df)
 #print("Looping root")
 """
