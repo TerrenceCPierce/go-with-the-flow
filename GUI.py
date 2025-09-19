@@ -200,7 +200,7 @@ btn_new_file = tk.Button(root, text='New File', command=newfile_Callback)
 btn_new_file.grid(column=2, row=0, sticky='ew')
 
 btn_exit = tk.Button(root, text='Exit', command=root.quit, bg='#e3e1e1')
-btn_exit.grid(column=3, row=3, sticky='nsew', pady=80, padx=10)
+btn_exit.grid(column=3, row=3, sticky='ew', padx=10)
 
 btn_lab_details = tk.Button(root, text='Lab Details', bg='#B4DCEB', command=labdetails_Callback)
 btn_lab_details.grid(column=3, row=0, sticky='ew')
@@ -211,7 +211,7 @@ lbl_title.grid(column=0, row=0, columnspan=2, sticky='nsew', padx=10, pady=30)
 
 # Collect Button
 btn_collect = tk.Button(root, text='Collect', command= collect_Callback, bg='#e3e1e1')
-btn_collect.grid(column=1, row=3, sticky='ew', pady=40, padx=10)
+btn_collect.grid(column=1, row=3, sticky='ew', padx=10)
 
 
 
