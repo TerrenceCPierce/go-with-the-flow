@@ -88,10 +88,15 @@ def arduinoConnect_Callback():
         arduino = serial.Serial(port=port, baudrate=115200, timeout=0.1)
         
         ArduinoConnectStr_var.set(f"Connected to {port}")
+
+        while arduino.readline().decode("utf-8").strip('\n').strip('\r') == "Arduino Ready":
+            arduino.write("GReady".encode())
     
     except serial.SerialException as e:
         ArduinoConnectStr_var.set(f"Connection failed: {e}")
         arduino = None
+    
+    
 
 
 ports = serial.tools.list_ports.comports()
@@ -139,8 +144,8 @@ def collect_Callback():
                 # Clear any backlog of Arduino messages
                 while arduino.in_waiting:
                     arduino.read()
-                    print("In Waiting 2")
-                    #time.sleep(0.1)
+                print("In Waiting 2")
+                time.sleep(0.5)
                 
                 # Send 3 times in case of dropped packets
                 arduino.write(code.encode())

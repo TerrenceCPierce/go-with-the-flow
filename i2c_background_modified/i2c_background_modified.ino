@@ -1,74 +1,88 @@
-#include <Dps310.h>
+#include <Adafruit_DPS310.h>
+#include <Wire.h>
 
-// Dps310 Opject
-Dps310 Dps310PressureSensorPitot = Dps310();
-Dps310 Dps310PressureSensorAmbient = Dps310();
+#define TCAADDR 0x70
+#define printDelayTime 1000
+#define MAX_PORTS 8   // TCA9548A has 8 possible ports
+
+// Each port can have its own DPS310 object
+Adafruit_DPS310 dpsArray[MAX_PORTS];
+Adafruit_Sensor* dpsTempArray[MAX_PORTS];
+Adafruit_Sensor* dpsPressureArray[MAX_PORTS];
+
+int validPorts[MAX_PORTS];
+int numValidPorts = 0;
+
+void tcaselect(uint8_t i) {
+  if (i > 7) return;
+  Wire.beginTransmission(TCAADDR);
+  Wire.write(1 << i);
+  Wire.endTransmission();
+}
+
+void bufferlessPrint(const char* str) {
+  while (!Serial);
+  Serial.println(str);
+  Serial.flush();
+}
 
 int delayAmount = 1000;
 
 void setup()
 {
   Serial.begin(115200);
-  while (!Serial);
+  Wire.begin();
+  Wire.setClock(100000);
 
-  //Call begin to initialize Dps310PressureSensor
-  //The parameter 0x76 is the bus address. The default address is 0x77 and does not need to be given.
-  //Dps310PressureSensor.begin(Wire, 0x76);
-  //Use the commented line below instead to use the default I2C address.
-  Dps310PressureSensorPitot.begin(Wire);
+  //bufferlessPrint("Start of setup");
+  delay(printDelayTime);
 
-  Dps310PressureSensorAmbient.begin(Wire, 0x76);
+  // Scan all ports once and store valid DPS310s
+  for (int i = 0; i < MAX_PORTS; i++) {
+    tcaselect(i);
+    delay(100);
 
-  //temperature measure rate (value from 0 to 7)
-  //2^temp_mr temperature measurement results per second
-  int16_t temp_mr = 2;
-  //temperature oversampling rate (value from 0 to 7)
-  //2^temp_osr internal temperature measurements per result
-  //A higher value increases precision
-  int16_t temp_osr = 2;
-  //pressure measure rate (value from 0 to 7)
-  //2^prs_mr pressure measurement results per second
-  int16_t prs_mr = 5;
-  //pressure oversampling rate (value from 0 to 7)
-  //2^prs_osr internal pressure measurements per result
-  //A higher value increases precision
-  int16_t prs_osr = 4;
-  //startMeasureBothCont enables background mode
-  //temperature and pressure ar measured automatically
-  //High precision and hgh measure rates at the same time are not available.
-  //Consult Datasheet (or trial and error) for more information
-  int16_t ret1 = Dps310PressureSensorPitot.startMeasureBothCont(temp_mr, temp_osr, prs_mr, prs_osr);
-  int16_t ret2 = Dps310PressureSensorAmbient.startMeasureBothCont(temp_mr, temp_osr, prs_mr, prs_osr);
-  //Use one of the commented lines below instead to measure only temperature or pressure
-  //int16_t ret = Dps310PressureSensor.startMeasureTempCont(temp_mr, temp_osr);
-  //int16_t ret = Dps310PressureSensor.startMeasurePressureCont(prs_mr, prs_osr);
+    if (dpsArray[i].begin_I2C()) {
+      char buf[32];
+      //snprintf(buf, sizeof(buf), "Port %d has DPS310", i);
+      //bufferlessPrint(buf);
 
+      validPorts[numValidPorts++] = i;
 
-  if (ret1 != 0)
-  {
-    Serial.print("Pitot Init FAILED! ret = ");
-    Serial.println(ret1);
-  }
-  else
-  {
-    Serial.println("Init complete!");
+      // Get sensor handles
+      dpsTempArray[i] = dpsArray[i].getTemperatureSensor();
+      dpsPressureArray[i] = dpsArray[i].getPressureSensor();
+
+      // Configure once
+      dpsArray[i].configurePressure(DPS310_64HZ, DPS310_64SAMPLES);
+      dpsArray[i].configureTemperature(DPS310_64HZ, DPS310_64SAMPLES);
+
+    } else {
+      char buf[32];
+      //snprintf(buf, sizeof(buf), "Port %d has NO DPS310", i);
+      //bufferlessPrint(buf);
+    }
   }
 
-  if (ret2 != 0)
-  {
-    Serial.print("Ambient Init FAILED! ret = ");
-    Serial.println(ret2);
-  }
-  else
-  {
-    Serial.println("Init complete!");
+  if (numValidPorts == 0) {
+    //bufferlessPrint("No valid DPS310 sensors found!");
   }
 }
 
-
+bool isGUIConnected = 0;
 
 void loop()
 {
+  //detect this in the GUI
+  while(!isGUIConnected){
+    bufferlessPrint("Arduino Ready");
+    delay(500);
+
+    String command = get_Vals_serial();
+    if(command == "GReady"){
+      isGUIConnected = 1;
+    }
+  }
   //getDataNoPython();
 
   
@@ -115,49 +129,49 @@ String get_Vals_serial() {
 }
 
 void getData() {
-  int num_samples = 3;
-  double dataArr1[num_samples];
-  double dataArr2[num_samples];
 
-  for (int16_t i = 0; i < num_samples; i++)
-  {
-    uint8_t pressureCount = 64;
-    float pressurePitot[pressureCount];
-    float pressureAmbient[pressureCount];
-    uint8_t temperatureCount = 64;
-    float temperature[temperatureCount];
-    double temp[2];
-    unsigned long time1 = millis();
-    retData(temperature, temperatureCount, pressurePitot, pressureAmbient, pressureCount, temp);
-    unsigned long time2 = millis();
-    //Serial.print("Time is ");
-    //Serial.println(time2 - time1);
-    dataArr1[i] = temp[0];
-    dataArr2[i] = temp[1];
-    //Serial.print("Data:,");
-    //Serial.print(temp[0]);
-    //Serial.print(",");
-    //Serial.println(temp[1]);
+  delay(printDelayTime);
+  float pressureData[numValidPorts];
+
+  for (int j = 0; j < numValidPorts; j++) {
+    int port = validPorts[j];
+    char buf[32];
+    //snprintf(buf, sizeof(buf), "Reading from port %d", port);
+    //bufferlessPrint(buf);
+
+    tcaselect(port);
+    delay(50);
+
+    sensors_event_t temp_event, pressure_event;
+
+    // Always try to read temperature
+    /*
+    dpsTempArray[port]->getEvent(&temp_event);
+    Serial.print("Temperature = ");
+    Serial.print(temp_event.temperature);
+    Serial.println(" *C");
+    */
+
+    // Always try to read pressure
+    dpsPressureArray[port]->getEvent(&pressure_event);
+    pressureData[j] = pressure_event.pressure;
+
+    delay(1000);
   }
-  double avg_pressurePitot = findMedian(dataArr1, num_samples);
-  double avg_pressureAmbient = findMedian(dataArr2, num_samples);
-  // Send data to python to write
-
   while (!Serial.available()) {
     Serial.println("Arduino Data Ready");
     delay(delayAmount);
   }
+  
   Serial.print("Data:,");
-  Serial.print(avg_pressurePitot);
+  Serial.print(pressureData[0]);
   Serial.print(",");
-  Serial.println(avg_pressureAmbient);
-
-
+  Serial.println(pressureData[1]);
 
   //Wait some time, so that the Dps310 can refill its buffer
   //delay(delayAmount);
 }
-
+/*
 void getDataNoPython() {
   int num_samples = 3;
   double dataArr1[num_samples];
@@ -192,7 +206,7 @@ void getDataNoPython() {
   //Wait some time, so that the Dps310 can refill its buffer
   //delay(delayAmount);
 }
-
+*/
 float findMedian(double arr[], int size) {
   //bubble sort from https://www.geeksforgeeks.org/bubble-sort/
   int i, j;
@@ -216,7 +230,7 @@ float findMedian(double arr[], int size) {
   }
 }
 
-
+/*
 void retData(float* temperature, uint8_t temperatureCount, float* pressurePitot, float* pressureAmbient, uint8_t pressureCount, double* result) {
   double* dataArr = new double[2];
   unsigned long time1 = millis();
@@ -260,3 +274,4 @@ void retData(float* temperature, uint8_t temperatureCount, float* pressurePitot,
   //return dataArr;
 
 }
+*/
