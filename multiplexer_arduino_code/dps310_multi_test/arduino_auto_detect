@@ -1,0 +1,78 @@
+import serial
+import serial.tools.list_ports
+import tkinter as tk
+
+root = tk.Tk()
+ArduinoConnectStr_var = tk.StringVar(root)
+port_var = tk.StringVar(root)
+
+
+# --- Arduino auto-detect helper ---
+def find_arduino_port():
+    ports = serial.tools.list_ports.comports()
+    for port in ports:
+        if "Arduino" in (port.description or "") or "USB Serial" in (port.description or ""):
+            print(f"Found Arduino on port: {port.device}")
+            return port.device
+        else: print("No Arduino found")
+    return None
+
+def auto_connect_arduino():
+    # show immediate feedback
+    ArduinoConnectStr_var.set("Scanning for Arduino…")
+    root.update_idletasks()
+
+    try:
+        port = find_arduino_port()
+        if not port:
+            ArduinoConnectStr_var.set("No Arduino found. Plug it in and try again.")
+            lbl_arduino.config(fg='red')
+            return
+
+        port_var.set(port)  # your callback expects this
+        ArduinoConnectStr_var.set(f"Found {port}. Connecting…")
+        root.update_idletasks()
+
+        # Reuse your existing connect logic; if this raises, we catch it
+        arduinoConnect_Callback()
+
+        # If we got here, assume connected
+        lbl_arduino.config(fg='green')
+        ArduinoConnectStr_var.set(f"Connected on {port}")
+        root.update_idletasks()
+
+    except Exception as e:
+        # Don’t silently fail—surface it in the GUI
+        lbl_arduino.config(fg='red')
+        ArduinoConnectStr_var.set(f"Error: {type(e).__name__}: {e}")
+        root.update_idletasks()
+
+# --- Arduino Status UI (unchanged except the button command) ---
+frame_status = tk.Frame(root)
+frame_status.grid(column=0, row=3, sticky='nsew')
+for i in range(2):
+    frame_status.grid_columnconfigure(i, weight=1)
+for j in range(3):
+    frame_status.grid_rowconfigure(j, weight=1)
+
+lbl_arduino = tk.Label(frame_status, text='Arduino Status:', fg='red')
+lbl_arduino.grid(column=0, row=0, sticky='ew')
+
+lbl_not_conn = tk.Label(frame_status, textvariable=ArduinoConnectStr_var)
+lbl_not_conn.grid(column=1, row=0, sticky='ew')
+
+lbl_thrust = tk.Label(frame_status, text='Port:')
+lbl_thrust.grid(column=0, row=1, sticky='ew')
+
+port_entry = tk.Entry(frame_status, textvariable=port_var)
+port_entry.grid(column=1, row=1, sticky='ew')
+
+btn_connect = tk.Button(
+    frame_status,
+    text='Auto-Connect',
+    bg='#B0CA99',
+    command=auto_connect_arduino
+)
+btn_connect.grid(column=0, row=2, columnspan=2, sticky='ew')
+
+root.mainloop()
