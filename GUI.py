@@ -73,6 +73,41 @@ def newfile_Callback():
 
 newfile_Callback()
 
+def find_arduino_port():
+    ports = serial.tools.list_ports.comports()
+    for port in ports:
+        if "Arduino" in (port.description or "") or "USB Serial" in (port.description or ""):
+            print(f"Found Arduino on port: {port.device}")
+            return port.device
+    print("No Arduino found")
+    return None
+
+def auto_connect_arduino():
+    ArduinoConnectStr_var.set("Scanning for Arduino…")
+    root.update_idletasks()
+
+    try:
+        port = find_arduino_port()
+        if not port:
+            ArduinoConnectStr_var.set("No Arduino found. Plug it in and try again.")
+            lbl_arduino.config(fg='red')
+            return
+
+        port_var.set(port)  
+        ArduinoConnectStr_var.set(f"Found {port}. Connecting…")
+        root.update_idletasks()
+
+        arduinoConnect_Callback()
+
+        lbl_arduino.config(fg='green')
+        ArduinoConnectStr_var.set(f"Connected on {port}")
+        root.update_idletasks()
+
+    except Exception as e:
+        lbl_arduino.config(fg='red')
+        ArduinoConnectStr_var.set(f"Error: {type(e).__name__}: {e}")
+        root.update_idletasks()
+
 
 def arduinoConnect_Callback():
     global arduino
@@ -232,7 +267,7 @@ lbl_thrust.grid(column=0, row=1, sticky='ew')
 port_entry = tk.Entry(frame_status, textvariable=port_var)
 port_entry.grid(column=1, row=1, sticky='ew')
 
-btn_connect = tk.Button(frame_status, text='Connect', bg='#B0CA99', command= arduinoConnect_Callback)
+btn_connect = tk.Button(frame_status, text='Connect', bg='#B0CA99', command= auto_connect_arduino)
 btn_connect.grid(column=0, row=2, columnspan=2, sticky='ew')
 
 #lbl_connected = tk.Label(frame_status, text='Connected')
@@ -415,7 +450,6 @@ def update_gui():
     except Exception as e:
         print(f"Error during update: {e}")
         root.after(2000, update_gui)  # Retry after 2 seconds if something went wrong
-
 
 update_gui()
 root.mainloop()
