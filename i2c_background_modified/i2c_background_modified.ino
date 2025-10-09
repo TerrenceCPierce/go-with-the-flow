@@ -69,18 +69,19 @@ void setup()
   }
 }
 
-bool isGUIConnected = 0;
+String isGUIConnected = "0";
 
 void loop()
 {
+  //Serial.println(isGUIConnected);
   //detect this in the GUI
-  while(!isGUIConnected){
-    bufferlessPrint("Arduino Ready");
+  while(!(isGUIConnected == "1")){
+    //Serial.println("Arduino Ready " + isGUIConnected);
     delay(500);
 
     String command = get_Vals_serial();
     if(command == "GReady"){
-      isGUIConnected = 1;
+      isGUIConnected = "1";
     }
   }
   //getDataNoPython();
@@ -107,7 +108,7 @@ String get_Vals_serial() {
   // gets the angle and distance values from Python
   // Need to tell Python script it's ready
   while (!Serial.available()) {
-    Serial.println("Arduino Ready");
+    Serial.println("Arduino Ready " + isGUIConnected);
     delay(delayAmount);
   }
 
@@ -158,10 +159,10 @@ void getData() {
 
     delay(1000);
   }
-  while (!Serial.available()) {
+  //while (!Serial.available()) {
     Serial.println("Arduino Data Ready");
     delay(delayAmount);
-  }
+  //}
   
   Serial.print("Data:,");
   Serial.print(pressureData[0]);

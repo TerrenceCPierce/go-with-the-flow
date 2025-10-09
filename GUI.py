@@ -88,9 +88,13 @@ def arduinoConnect_Callback():
         arduino = serial.Serial(port=port, baudrate=115200, timeout=0.1)
         
         ArduinoConnectStr_var.set(f"Connected to {port}")
-
-        while arduino.readline().decode("utf-8").strip('\n').strip('\r') == "Arduino Ready":
-            arduino.write("GReady".encode())
+        arduino_str = ""
+        while (arduino_str == ""):
+            arduino_str = arduino.readline().decode("utf-8").strip('\n').strip('\r')
+            print("!"+ arduino_str)
+            arduino.write("GReady\n".encode())
+            print("GUI Ready")
+            time.sleep(0.5)
     
     except serial.SerialException as e:
         ArduinoConnectStr_var.set(f"Connection failed: {e}")
@@ -109,6 +113,9 @@ def labdetails_Callback():
     webbrowser.open_new(r"https://drive.google.com/file/d/1WX5xK7Xqua2Vz-lO5Z7_klDieToz0dC8/view?usp=sharing")
  
 def collect_Callback():
+    arduino.flushInput()
+    arduino.flushOutput()
+    time.sleep(0.05)
     # DEBUG
     # writer = csv.writer(file)
     # x_pos = pos_var.get()
@@ -121,13 +128,15 @@ def collect_Callback():
     notCollected = True
     writer = csv.writer(file)
     while notCollected:
-        if arduino.readline().decode("utf-8").strip('\n').strip('\r') == "Arduino Ready":
+        test_str = arduino.readline().decode("utf-8").strip('\n').strip('\r')
+        print(test_str)
+        if test_str == "Arduino Ready 1":
                 print("Arduino Ready")
                 
                 
                 # Clear any backlog of Arduino messages
                 while arduino.in_waiting:
-                    arduino.read()
+                    print(arduino.read())
                     print("In Waiting 1")
                     #time.sleep(0.1)
                 
@@ -143,19 +152,27 @@ def collect_Callback():
                     
                 # Clear any backlog of Arduino messages
                 while arduino.in_waiting:
-                    arduino.read()
-                print("In Waiting 2")
-                time.sleep(0.5)
+                    print(arduino.read())
+                    print("In Waiting 2")
+                    time.sleep(1)
                 
                 # Send 3 times in case of dropped packets
-                arduino.write(code.encode())
+                arduino.write((code + "\n").encode())
                 time.sleep(0.05)
+                #arduino.write((code + "\n").encode())
+                #time.sleep(0.05)
+                #arduino.write((code + "\n").encode())
+                #time.sleep(0.05)
                 
                 returned_str = arduino.readline().decode("utf-8").strip('\n').strip('\r')
+                print(returned_str)
                 while(not returned_str.startswith("Arduino Data Ready")):
-                    time.sleep(0.05)
+                    #arduino.flushInput()
+                    #arduino.flushOutput()
+                    arduino.write((code + "\n").encode())
+                    time.sleep(3)
                     returned_str = arduino.readline().decode("utf-8").strip('\n').strip('\r')
-                    print(returned_str)
+                    print(returned_str + "1")
                 
                 arduino.write("SendData".encode())
                 
@@ -172,12 +189,13 @@ def collect_Callback():
                 pitot_press_str = modified_str.split(",", 1)[0]
                 ambient_press_str = modified_str.split(",", 1)[1]
                 
-                writer.writerow([x_pos, pitot_press_str, ambient_press_str, thrust])
+                writer.writerow([x_pos, str(float(pitot_press_str)*100), str(float(ambient_press_str)*100), thrust])
                 file.flush()
                 print("Wrote to CSV")
                 notCollected = False
                 df = pd.read_csv(file.name)
-
+                arduino.flushInput()
+                arduino.flushOutput()
 
 
 # Window
