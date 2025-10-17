@@ -3,7 +3,7 @@
 
 #define TCAADDR 0x70
 #define printDelayTime 1000
-#define MAX_PORTS 8   // TCA9548A has 8 possible ports
+#define MAX_PORTS 8  // TCA9548A has 8 possible ports
 
 // Each port can have its own DPS310 object
 Adafruit_DPS310 dpsArray[MAX_PORTS];
@@ -21,15 +21,15 @@ void tcaselect(uint8_t i) {
 }
 
 void bufferlessPrint(const char* str) {
-  while (!Serial);
+  while (!Serial)
+    ;
   Serial.println(str);
   Serial.flush();
 }
 
 int delayAmount = 1000;
 
-void setup()
-{
+void setup() {
   Serial.begin(115200);
   Wire.begin();
   Wire.setClock(100000);
@@ -71,37 +71,33 @@ void setup()
 
 String isGUIConnected = "0";
 
-void loop()
-{
+void loop() {
   //Serial.println(isGUIConnected);
   //detect this in the GUI
-  while(!(isGUIConnected == "1")){
+  while (!(isGUIConnected == "1")) {
     //Serial.println("Arduino Ready " + isGUIConnected);
     delay(500);
 
     String command = get_Vals_serial();
-    if(command == "GReady"){
+    if (command == "GReady") {
       isGUIConnected = "1";
     }
   }
   //getDataNoPython();
 
-  
+
   String command = get_Vals_serial();
 
   if (command == "a") {
     Serial.println("Received a");
     // get data
     getData();
-  }
-  else if (command == "b") {
+  } else if (command == "b") {
     Serial.println("Received b");
     // get baseline pressure
   }
 
   //getData();
-  
-
 }
 
 String get_Vals_serial() {
@@ -160,10 +156,10 @@ void getData() {
     delay(1000);
   }
   //while (!Serial.available()) {
-    Serial.println("Arduino Data Ready");
-    delay(delayAmount);
+  Serial.println("Arduino Data Ready");
+  delay(delayAmount);
   //}
-  
+
   Serial.print("Data:,");
   Serial.print(pressureData[0]);
   Serial.print(",");
@@ -225,8 +221,7 @@ float findMedian(double arr[], int size) {
 
   if (!(size % (2))) {
     return (arr[(int)(size / 2)] + arr[(int)(size / 2 + 1)]) / 2;
-  }
-  else {
+  } else {
     return arr[(int)(size / 2)];
   }
 }
