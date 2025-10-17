@@ -108,7 +108,6 @@ def auto_connect_arduino():
         ArduinoConnectStr_var.set(f"Error: {type(e).__name__}: {e}")
         root.update_idletasks()
 
-
 def arduinoConnect_Callback():
     global arduino
     
@@ -129,9 +128,9 @@ def arduinoConnect_Callback():
         arduino = None
 
 
-ports = serial.tools.list_ports.comports()
-for port in ports:
-    print(port.device, "-", port.description)
+    ports = serial.tools.list_ports.comports()
+    for port in ports:
+        print(port.device, "-", port.description)
 
 
 
