@@ -12,7 +12,8 @@ import csv
 import time
 import pandas as pd
 import numpy as np
-
+import tkinter as tk
+from tkmacosx import Button
 
 root = tk.Tk()
 pos_var= tk.StringVar()
@@ -250,13 +251,13 @@ for j in range(4):
     root.grid_rowconfigure(j, weight=1)
 
 # Buttons
-btn_new_file = tk.Button(root, text='New File', bg='#1E90FF', command=newfile_Callback)
+btn_new_file = Button(root, text='New File', bg='#1E90FF', command=newfile_Callback)
 btn_new_file.grid(column=2, row=0, sticky='ew')
 
-btn_exit = tk.Button(root, text='Exit', bg='#D9D9D9', command=root.quit)
+btn_exit = Button(root, text='Exit', bg='#D9D9D9', command=root.quit)
 btn_exit.grid(column=3, row=3, sticky='ew')
 
-btn_lab_details = tk.Button(root, text='Lab Details', bg='#B4DCEB', command=labdetails_Callback)
+btn_lab_details = Button(root, text='Lab Details', bg='#B4DCEB', command=labdetails_Callback)
 btn_lab_details.grid(column=3, row=0, sticky='ew')
 
 # Widgets
@@ -264,7 +265,7 @@ lbl_title = tk.Label(root, text='Thrust Stand Experiment', bg='white', fg='black
 lbl_title.grid(column=0, row=0, columnspan=2, sticky='nsew')
 
 # Collect Button
-btn_collect = tk.Button(root, text='Collect', bg='#B0CA99', command= collect_Callback)
+btn_collect = Button(root, text='Collect', bg='#B0CA99', command= collect_Callback)
 btn_collect.grid(column=1, row=3, sticky='ew')
 
 
@@ -289,7 +290,7 @@ lbl_thrust.grid(column=0, row=1, sticky='ew')
 port_entry = tk.Entry(frame_status, textvariable=port_var)
 port_entry.grid(column=1, row=1, sticky='ew')
 
-btn_connect = tk.Button(frame_status, text='Connect', bg='#B0CA99', command= auto_connect_arduino)
+btn_connect = Button(frame_status, text='Connect', bg='#B0CA99', command= auto_connect_arduino)
 btn_connect.grid(column=0, row=2, columnspan=2, sticky='ew')
 
 #lbl_connected = tk.Label(frame_status, text='Connected')
