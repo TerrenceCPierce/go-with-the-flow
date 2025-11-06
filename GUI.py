@@ -130,6 +130,7 @@ def arduinoConnect_Callback():
             arduino.write("GReady\n".encode())
             print("GUI Ready")
             time.sleep(0.5)
+            break
     
     except serial.SerialException as e:
         ArduinoConnectStr_var.set(f"Connection failed: {e}")
