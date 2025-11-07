@@ -14,6 +14,9 @@ import pandas as pd
 import numpy as np
 import tkinter as tk
 from tkmacosx import Button
+import platform
+
+
 
 root = tk.Tk()
 pos_var= tk.StringVar()
@@ -77,7 +80,8 @@ newfile_Callback()
 def find_arduino_port():
     ports = serial.tools.list_ports.comports()
     for port in ports:
-        if "Arduino" in (port.description or "") or "USB Serial" in (port.description or ""):
+        print(port.description)
+        if "Arduino" in (port.description or "") or "USB" in (port.description or ""):
             print(f"Found Arduino on port: {port.device}")
             return port.device
     print("No Arduino found")
