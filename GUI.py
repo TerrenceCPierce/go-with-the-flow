@@ -81,7 +81,7 @@ def find_arduino_port():
     ports = serial.tools.list_ports.comports()
     for port in ports:
         print(port.description)
-        if "Arduino" in (port.description or "") or "USB" in (port.description or ""):
+        if "Arduino" in (port.description or "") or "USB to UART" in (port.description or ""):
             print(f"Found Arduino on port: {port.device}")
             return port.device
     print("No Arduino found")
@@ -134,7 +134,7 @@ def arduinoConnect_Callback():
             arduino.write("GReady\n".encode())
             print("GUI Ready")
             time.sleep(0.5)
-            break
+            
     
     except serial.SerialException as e:
         ArduinoConnectStr_var.set(f"Connection failed: {e}")
@@ -238,10 +238,10 @@ def collect_Callback():
                 arduino.flushOutput()
 
 
-# Window
+# # Window
 root.title('Thrust Stand Experiment')
 root.geometry('1440x900')
-root.configure(bg='#f8f8fb')
+root.configure(bg='white')
 
 # Grid
 '''for i in range(4):
@@ -256,47 +256,47 @@ for j in range(4):
     root.grid_rowconfigure(j, weight=1)
 
 # Buttons
-btn_new_file = Button(root, text='New File', bg='#1E90FF', command=newfile_Callback)
-btn_new_file.grid(column=2, row=0, sticky='ew')
+btn_new_file = Button(root, height = 100, width = 250, text='New File', bg='#1E90FF', command=newfile_Callback)
+btn_new_file.grid(column=3, row=3, sticky='e')
 
-btn_exit = Button(root, text='Exit', bg='#D9D9D9', command=root.quit)
-btn_exit.grid(column=3, row=3, sticky='ew')
+btn_exit = Button(root, text='Exit', bg="#F28484", command=root.quit)
+btn_exit.grid(column=3, row=0, sticky='ew')
 
 btn_lab_details = Button(root, text='Lab Details', bg='#B4DCEB', command=labdetails_Callback)
-btn_lab_details.grid(column=3, row=0, sticky='ew')
+btn_lab_details.grid(column=2, row=0, sticky='ew')
 
 # Widgets
-lbl_title = tk.Label(root, text='Thrust Stand Experiment', bg='white', fg='black')
-lbl_title.grid(column=0, row=0, columnspan=2, sticky='nsew')
+# lbl_title = tk.Label(root, text='Thrust Stand Experiment', fg='black')
+# lbl_title.grid(column=0, row=0, columnspan=2, sticky='nsew')
 
 # Collect Button
-btn_collect = Button(root, text='Collect', bg='#B0CA99', command= collect_Callback)
-btn_collect.grid(column=1, row=3, sticky='ew')
+btn_collect = Button(root, height = 100, width = 250, text='Collect', bg='#B0CA99', command= collect_Callback)
+btn_collect.grid(column=2, columnspan=2, row=3)
 
 
 
 # Arduino Status
-frame_status = tk.Frame(root)
-frame_status.grid(column=0, row=3, sticky='nsew')
+frame_status = tk.Frame(root, bg='white')
+frame_status.grid(column=0, row=3, sticky='new', padx=15, pady=15)
 for i in range(2):
-    frame_status.grid_columnconfigure(i, weight=1)
+    frame_status.grid_columnconfigure(i, weight=1, minsize=150)
 for j in range(3):
-    frame_status.grid_rowconfigure(j, weight=1)
+    frame_status.grid_rowconfigure(j, weight=1, minsize=30)
 
-lbl_arduino = tk.Label(frame_status, text='Arduino Status:', fg='red')
+lbl_arduino = tk.Label(frame_status, text='Arduino Status:', bg='white')
 lbl_arduino.grid(column=0, row=0, sticky='ew')
 
-lbl_not_conn = tk.Label(frame_status, textvariable=ArduinoConnectStr_var)
+lbl_not_conn = tk.Label(frame_status, textvariable=ArduinoConnectStr_var, fg='red', bg='white')
 lbl_not_conn.grid(column=1, row=0, sticky='ew')
 
-lbl_thrust = tk.Label(frame_status, text='Port:')
+lbl_thrust = tk.Label(frame_status, text='Port:', bg='white')
 lbl_thrust.grid(column=0, row=1, sticky='ew')
 
 port_entry = tk.Entry(frame_status, textvariable=port_var)
 port_entry.grid(column=1, row=1, sticky='ew')
 
 btn_connect = Button(frame_status, text='Connect', bg='#B0CA99', command= auto_connect_arduino)
-btn_connect.grid(column=0, row=2, columnspan=2, sticky='ew')
+btn_connect.grid(column=0, row=4, columnspan = 2, sticky='ew')
 
 #lbl_connected = tk.Label(frame_status, text='Connected')
 #lbl_connected.grid(column=0, row=1, sticky='nw')
@@ -312,21 +312,21 @@ btn_connect.grid(column=0, row=2, columnspan=2, sticky='ew')
 
 # Thrust/Position Frame
 frame_tp = tk.Frame(root)
-frame_tp.grid(column=2, row=3, sticky='ew')
+frame_tp.grid(column=1, columnspan=2, row=3)
 frame_tp.grid_columnconfigure(0, weight=1, minsize=200)
 for i in range(4):
     frame_tp.grid_rowconfigure(i, weight=1)
 
 # Thrust
-lbl_thrust = tk.Label(frame_tp, text='Thrust (g)')
-lbl_thrust.grid(column=0, row=0, sticky='ew')
+lbl_thrust = tk.Label(frame_tp, width = 30, text='Thrust (g)', bg='white')
+lbl_thrust.grid(column=0, row=0)
 
 thrust_entry = tk.Entry(frame_tp, textvariable=thrust_var)
 thrust_entry.grid(column=0, row=1, sticky='ew')
 # thrust_entry.pack(side='bottom', fill='x', expand=True)
 
 # Position
-lbl_position = tk.Label(frame_tp, text="Position:")
+lbl_position = tk.Label(frame_tp, text="Position:", bg = 'white')
 lbl_position.grid(column=0, row=2, sticky='ew')
 
 position_entry = tk.Entry(frame_tp, textvariable=pos_var)
@@ -338,13 +338,13 @@ position_entry.grid(column=0, row=3, sticky='nsew')
 
 
 # Pressure Graph Frame
-frame_PX = tk.Frame(root)
-frame_PX.grid(column=0, row=1, columnspan=2, sticky='ew')
+frame_PX = tk.Frame(root, bg='white')
+frame_PX.grid(column=0, row=1, columnspan=2, sticky='nsew')
 frame_PX.grid_columnconfigure(0, weight=1)
 for i in range(1):
     frame_tp.grid_rowconfigure(i, weight=1)
 
-lbl_PX = tk.Label(frame_PX, text='Absolute Pressure vs X-Position', bg='#fff', font=("Arial",20))
+lbl_PX = tk.Label(frame_PX, text='Absolute Pressure vs X-Position', font=("Arial",20), bg='white')
 lbl_PX.grid(column=0, row=0, sticky='nsew')
 
 if isTest:
@@ -354,7 +354,7 @@ if isTest:
 else:
     df = pd.read_csv(file.name)
 
-fig_press = plt.Figure(figsize=(2, 2), dpi=100)
+fig_press = plt.Figure(figsize=(2.5, 2.5), dpi=100)
 scatter = FigureCanvasTkAgg(fig_press, frame_PX)
 scatter.get_tk_widget().grid(column=0, row=1, sticky='nsew')  # use only .grid()
 
@@ -371,16 +371,16 @@ fig_press.set_constrained_layout(True)
 
 
 # Velocity Graph Frame
-frame_VX = tk.Frame(root)
-frame_VX.grid(column=0, row=2, columnspan=2, sticky='ew')
+frame_VX = tk.Frame(root, bg='white')
+frame_VX.grid(column=0, row=2, columnspan=2, sticky='nsew')
 frame_VX.grid_columnconfigure(0, weight=1)
 for i in range(1):
     frame_tp.grid_rowconfigure(i, weight=1)
 
-lbl_VX = tk.Label(frame_VX, text='Velocity vs X-Position', bg='#fff', font=("Arial",20))
+lbl_VX = tk.Label(frame_VX, text='Velocity vs X-Position', bg='white', font=("Arial",20))
 lbl_VX.grid(column=0, row=0, sticky='nsew')
 
-fig_velo = plt.Figure(figsize=(2, 2), dpi=100)
+fig_velo = plt.Figure(figsize=(2.5, 2.5), dpi=100)
 scatter = FigureCanvasTkAgg(fig_velo, frame_VX)
 scatter.get_tk_widget().grid(column=0, row=1, sticky='nsew')  # use only .grid()
 
