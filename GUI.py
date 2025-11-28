@@ -19,6 +19,15 @@ import platform
 
 
 root = tk.Tk()
+
+# Force light mode on macOS
+try:
+    root.tk.call('tk::unsupported::MacWindowStyle', 'appearance', root, 'aqua')
+except:
+    pass
+
+root.configure(bg='white')
+
 pos_var= tk.StringVar()
 thrust_var = tk.StringVar()
 port_var = tk.StringVar()
