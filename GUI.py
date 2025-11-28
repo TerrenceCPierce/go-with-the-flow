@@ -283,20 +283,20 @@ for i in range(2):
 for j in range(3):
     frame_status.grid_rowconfigure(j, weight=1, minsize=30)
 
-lbl_arduino = tk.Label(frame_status, text='Arduino Status:', bg='white')
+lbl_arduino = tk.Label(frame_status, text='Arduino Status:', bg='white', fg='black')
 lbl_arduino.grid(column=0, row=0, sticky='ew')
 
 lbl_not_conn = tk.Label(frame_status, textvariable=ArduinoConnectStr_var, fg='red', bg='white')
 lbl_not_conn.grid(column=1, row=0, sticky='ew')
 
-lbl_thrust = tk.Label(frame_status, text='Port:', bg='white')
+lbl_thrust = tk.Label(frame_status, text='Port:', bg='white', fg='black')
 lbl_thrust.grid(column=0, row=1, sticky='ew')
 
 port_entry = tk.Entry(frame_status, textvariable=port_var)
 port_entry.grid(column=1, row=1, sticky='ew')
 
 btn_connect = Button(frame_status, text='Connect', bg='#B0CA99', command= auto_connect_arduino)
-btn_connect.grid(column=0, row=4, columnspan = 2, sticky='ew')
+btn_connect.grid(column=0, row=2, columnspan = 2, sticky='ew')
 
 #lbl_connected = tk.Label(frame_status, text='Connected')
 #lbl_connected.grid(column=0, row=1, sticky='nw')
@@ -318,15 +318,15 @@ for i in range(4):
     frame_tp.grid_rowconfigure(i, weight=1)
 
 # Thrust
-lbl_thrust = tk.Label(frame_tp, width = 30, text='Thrust (g)', bg='white')
+lbl_thrust = tk.Label(frame_tp, width = 30, text='Thrust (g)',fg='black', bg='white')
 lbl_thrust.grid(column=0, row=0)
 
-thrust_entry = tk.Entry(frame_tp, textvariable=thrust_var)
+thrust_entry = ttk.Entry(frame_tp, textvariable=thrust_var)
 thrust_entry.grid(column=0, row=1, sticky='ew')
 # thrust_entry.pack(side='bottom', fill='x', expand=True)
 
 # Position
-lbl_position = tk.Label(frame_tp, text="Position:", bg = 'white')
+lbl_position = tk.Label(frame_tp, text="Position:", bg = 'white', fg='black')
 lbl_position.grid(column=0, row=2, sticky='ew')
 
 position_entry = tk.Entry(frame_tp, textvariable=pos_var)
@@ -344,7 +344,7 @@ frame_PX.grid_columnconfigure(0, weight=1)
 for i in range(1):
     frame_tp.grid_rowconfigure(i, weight=1)
 
-lbl_PX = tk.Label(frame_PX, text='Absolute Pressure vs X-Position', font=("Arial",20), bg='white')
+lbl_PX = tk.Label(frame_PX, text='Absolute Pressure vs X-Position', font=("Arial",20), bg='white', fg='black')
 lbl_PX.grid(column=0, row=0, sticky='nsew')
 
 if isTest:
@@ -377,7 +377,7 @@ frame_VX.grid_columnconfigure(0, weight=1)
 for i in range(1):
     frame_tp.grid_rowconfigure(i, weight=1)
 
-lbl_VX = tk.Label(frame_VX, text='Velocity vs X-Position', bg='white', font=("Arial",20))
+lbl_VX = tk.Label(frame_VX, text='Velocity vs X-Position', bg='white', font=("Arial",20), fg='black')
 lbl_VX.grid(column=0, row=0, sticky='nsew')
 
 fig_velo = plt.Figure(figsize=(2.5, 2.5), dpi=100)
