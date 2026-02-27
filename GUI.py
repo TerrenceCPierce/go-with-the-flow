@@ -12,6 +12,7 @@ import time
 import pandas as pd
 import numpy as np
 import platform
+from tkmacosx import Button
 
 
 
@@ -267,14 +268,14 @@ root.grid_columnconfigure(3, weight=1)
 for j in range(4):
     root.grid_rowconfigure(j, weight=1)
 
-# Buttons
-btn_new_file = tk.Button(root, height = 4, width = 20, text='New File', bg='#1E90FF', fg='white', command=newfile_Callback)
+# Buttons (using tkmacosx Button for macOS color support)
+btn_new_file = Button(root, height=100, width=250, text='New File', bg='#1E90FF', fg='white', font=("Arial", 16), command=newfile_Callback)
 btn_new_file.grid(column=3, row=3, sticky='e')
 
-btn_exit = tk.Button(root, text='Exit', bg="#F28484", fg='white', command=root.quit)
+btn_exit = Button(root, text='Exit', bg="#F14C4C", fg='white', font=("Arial", 16),command=root.quit)
 btn_exit.grid(column=3, row=0, sticky='ew')
 
-btn_lab_details = tk.Button(root, text='Lab Details', bg='#B4DCEB', fg='black', command=labdetails_Callback)
+btn_lab_details = Button(root, text='Lab Details', bg="#32BDEF", fg='black', font=("Arial", 16), command=labdetails_Callback)
 btn_lab_details.grid(column=2, row=0, sticky='ew')
 
 # Widgets
@@ -282,7 +283,7 @@ btn_lab_details.grid(column=2, row=0, sticky='ew')
 # lbl_title.grid(column=0, row=0, columnspan=2, sticky='nsew')
 
 # Collect Button
-btn_collect = tk.Button(root, height = 4, width = 20, text='Collect', bg='#B0CA99', fg='black', command= collect_Callback)
+btn_collect = Button(root, height=100, width=250, text='Collect', bg="#94D35C", fg='black', font=("Arial", 16), command= collect_Callback)
 btn_collect.grid(column=2, columnspan=2, row=3)
 
 
@@ -295,19 +296,19 @@ for i in range(2):
 for j in range(3):
     frame_status.grid_rowconfigure(j, weight=1, minsize=30)
 
-lbl_arduino = tk.Label(frame_status, text='Arduino Status:', bg='white', fg='black')
+lbl_arduino = tk.Label(frame_status, text='Arduino Status:', bg='white', fg='black', font=("Arial", 16))
 lbl_arduino.grid(column=0, row=0, sticky='ew')
 
-lbl_not_conn = tk.Label(frame_status, textvariable=ArduinoConnectStr_var, fg='red', bg='white')
+lbl_not_conn = tk.Label(frame_status, textvariable=ArduinoConnectStr_var, fg='red', bg='white', font=("Arial", 16))
 lbl_not_conn.grid(column=1, row=0, sticky='ew')
 
-lbl_thrust = tk.Label(frame_status, text='Port:', bg='white', fg='black')
+lbl_thrust = tk.Label(frame_status, text='Port:', bg='white', fg='black', font=("Arial", 16))
 lbl_thrust.grid(column=0, row=1, sticky='ew')
 
 port_entry = tk.Entry(frame_status, textvariable=port_var)
 port_entry.grid(column=1, row=1, sticky='ew')
 
-btn_connect = tk.Button(frame_status, text='Connect', bg='#B0CA99', fg='black', command= auto_connect_arduino)
+btn_connect = Button(frame_status, text='Connect', bg='#B0CA99', fg='black', command= auto_connect_arduino)
 btn_connect.grid(column=0, row=2, columnspan = 2, sticky='ew')
 
 #lbl_connected = tk.Label(frame_status, text='Connected')
@@ -330,7 +331,7 @@ for i in range(4):
     frame_tp.grid_rowconfigure(i, weight=1)
 
 # Thrust
-lbl_thrust = tk.Label(frame_tp, width = 30, text='Thrust (g)',fg='black', bg='white')
+lbl_thrust = tk.Label(frame_tp, width = 30, text='Thrust (g):',fg='black', bg='white', font=("Arial", 16))
 lbl_thrust.grid(column=0, row=0)
 
 thrust_entry = ttk.Entry(frame_tp, textvariable=thrust_var)
@@ -338,7 +339,7 @@ thrust_entry.grid(column=0, row=1, sticky='ew')
 # thrust_entry.pack(side='bottom', fill='x', expand=True)
 
 # Position
-lbl_position = tk.Label(frame_tp, text="Position:", bg = 'white', fg='black')
+lbl_position = tk.Label(frame_tp, text="Position (mm):", bg = 'white', fg='black', font=("Arial", 16))
 lbl_position.grid(column=0, row=2, sticky='ew')
 
 position_entry = tk.Entry(frame_tp, textvariable=pos_var)
