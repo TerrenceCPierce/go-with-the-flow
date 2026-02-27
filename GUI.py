@@ -7,13 +7,10 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import serial 
 import serial.tools.list_ports
 from datetime import datetime
-import webbrowser
 import csv
 import time
 import pandas as pd
 import numpy as np
-import tkinter as tk
-from tkmacosx import Button
 import platform
 
 
@@ -37,6 +34,7 @@ ArduinoConnectStr_var.set("Not Connected")
 
 isTest = 0
 air_density = 1.298351265 # kg/m^3
+arduino = None
 
 global df
 global file
@@ -162,6 +160,11 @@ def labdetails_Callback():
     webbrowser.open_new(r"https://drive.google.com/file/d/1WX5xK7Xqua2Vz-lO5Z7_klDieToz0dC8/view?usp=sharing")
  
 def collect_Callback():
+    global arduino
+    if arduino is None:
+        ArduinoConnectStr_var.set("Connect Arduino first!")
+        lbl_not_conn.config(fg='red')
+        return
     arduino.flushInput()
     arduino.flushOutput()
     time.sleep(0.05)
@@ -265,13 +268,13 @@ for j in range(4):
     root.grid_rowconfigure(j, weight=1)
 
 # Buttons
-btn_new_file = Button(root, height = 100, width = 250, text='New File', bg='#1E90FF', command=newfile_Callback)
+btn_new_file = tk.Button(root, height = 4, width = 20, text='New File', bg='#1E90FF', fg='white', command=newfile_Callback)
 btn_new_file.grid(column=3, row=3, sticky='e')
 
-btn_exit = Button(root, text='Exit', bg="#F28484", command=root.quit)
+btn_exit = tk.Button(root, text='Exit', bg="#F28484", fg='white', command=root.quit)
 btn_exit.grid(column=3, row=0, sticky='ew')
 
-btn_lab_details = Button(root, text='Lab Details', bg='#B4DCEB', command=labdetails_Callback)
+btn_lab_details = tk.Button(root, text='Lab Details', bg='#B4DCEB', fg='black', command=labdetails_Callback)
 btn_lab_details.grid(column=2, row=0, sticky='ew')
 
 # Widgets
@@ -279,7 +282,7 @@ btn_lab_details.grid(column=2, row=0, sticky='ew')
 # lbl_title.grid(column=0, row=0, columnspan=2, sticky='nsew')
 
 # Collect Button
-btn_collect = Button(root, height = 100, width = 250, text='Collect', bg='#B0CA99', command= collect_Callback)
+btn_collect = tk.Button(root, height = 4, width = 20, text='Collect', bg='#B0CA99', fg='black', command= collect_Callback)
 btn_collect.grid(column=2, columnspan=2, row=3)
 
 
@@ -304,7 +307,7 @@ lbl_thrust.grid(column=0, row=1, sticky='ew')
 port_entry = tk.Entry(frame_status, textvariable=port_var)
 port_entry.grid(column=1, row=1, sticky='ew')
 
-btn_connect = Button(frame_status, text='Connect', bg='#B0CA99', command= auto_connect_arduino)
+btn_connect = tk.Button(frame_status, text='Connect', bg='#B0CA99', fg='black', command= auto_connect_arduino)
 btn_connect.grid(column=0, row=2, columnspan = 2, sticky='ew')
 
 #lbl_connected = tk.Label(frame_status, text='Connected')
@@ -320,7 +323,7 @@ btn_connect.grid(column=0, row=2, columnspan = 2, sticky='ew')
 
 
 # Thrust/Position Frame
-frame_tp = tk.Frame(root)
+frame_tp = tk.Frame(root, bg='white')
 frame_tp.grid(column=1, columnspan=2, row=3)
 frame_tp.grid_columnconfigure(0, weight=1, minsize=200)
 for i in range(4):
