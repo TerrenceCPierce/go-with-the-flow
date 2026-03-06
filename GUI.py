@@ -4,21 +4,15 @@ import os
 import webbrowser
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import serial 
+import serial
 import serial.tools.list_ports
 from datetime import datetime
-import webbrowser
 import csv
 import time
 import pandas as pd
 import numpy as np
 
 
-root = tk.Tk()
-thrust_var = tk.StringVar()
-port_var = tk.StringVar()
-
-ArduinoConnectStr_var = tk.StringVar()
 AIR_DENSITY = 1.298351265  # kg/m^3
 LAB_DETAILS_URL = "https://drive.google.com/file/d/1WX5xK7Xqua2Vz-lO5Z7_klDieToz0dC8/view?usp=sharing"
 
