@@ -3,12 +3,13 @@ from tkmacosx import Button
 from GUI import launch_thrust_stand
 from GUI import launch_pipe_flow
 from GUI import launch_wind_tunnel
+from GUI import launch_diagnostic
 
 # --- Landing Page ---
 if __name__ == "__main__":
     landing = tk.Tk()
     landing.title("Welcome")
-    landing.geometry("700x500")
+    landing.geometry("700x600")
     landing.configure(bg="#e6f0ff")
 
     # Gradient simulation with color bands
@@ -47,6 +48,10 @@ if __name__ == "__main__":
         landing.destroy()
         launch_wind_tunnel()
 
+    def open_diagnostic():
+        landing.destroy()
+        launch_diagnostic()
+
     # ---- Buttons ----
     btn_ts = Button(
         landing,
@@ -57,7 +62,7 @@ if __name__ == "__main__":
         command=open_thrust_stand,
         borderless=1,
     )
-    btn_ts.place(relx=0.5, rely=0.50, anchor="center", width=260, height=55)
+    btn_ts.place(relx=0.5, rely=0.44, anchor="center", relwidth=0.45, relheight=0.10)
 
     btn_pf = Button(
         landing,
@@ -68,7 +73,7 @@ if __name__ == "__main__":
         command=open_pipe_flow,
         borderless=1,
     )
-    btn_pf.place(relx=0.5, rely=0.63, anchor="center", width=260, height=55)
+    btn_pf.place(relx=0.5, rely=0.57, anchor="center", relwidth=0.45, relheight=0.10)
 
     btn_wt = Button(
         landing,
@@ -79,6 +84,17 @@ if __name__ == "__main__":
         command=open_wind_tunnel,
         borderless=1,
     )
-    btn_wt.place(relx=0.5, rely=0.76, anchor="center", width=260, height=55)
+    btn_wt.place(relx=0.5, rely=0.70, anchor="center", relwidth=0.45, relheight=0.10)
+
+    btn_diag = Button(
+        landing,
+        text="Launch Diagnostic",
+        bg="#6A5ACD",     # Purple theme
+        fg="white",
+        font=("Helvetica", 16, "bold"),
+        command=open_diagnostic,
+        borderless=1,
+    )
+    btn_diag.place(relx=0.5, rely=0.83, anchor="center", relwidth=0.45, relheight=0.10)
 
     landing.mainloop()

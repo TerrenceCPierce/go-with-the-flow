@@ -11,7 +11,7 @@ import csv
 import time
 import pandas as pd
 import numpy as np
-
+from tkmacosx import Button
 
 AIR_DENSITY = 1.298351265  # kg/m^3
 LAB_DETAILS_URL = "https://drive.google.com/file/d/1WX5xK7Xqua2Vz-lO5Z7_klDieToz0dC8/view?usp=sharing"
@@ -27,6 +27,168 @@ def launch_pipe_flow(master=None):
 
 def launch_wind_tunnel(master=None):
     _launch_experiment(master, "Wind Tunnel Experiment")
+
+def launch_diagnostic(master=None):
+    _launch_diagnostic_window(master)
+
+def _launch_diagnostic_window(master):
+    standalone_root = None
+
+    if master is None:
+        standalone_root = tk.Tk()
+        standalone_root.withdraw()
+        master = standalone_root
+    else:
+        master.withdraw()
+
+    root = tk.Toplevel(master)
+    root.title("Diagnostic Test")
+    root.geometry("1000x700")
+    root.configure(bg="white")
+
+    arduino = None
+    running = False
+    times = []
+    pressures = []
+    start_time = None
+
+    def on_close():
+        nonlocal running
+        running = False
+        try:
+            if arduino is not None and arduino.is_open:
+                arduino.close()
+        except Exception:
+            pass
+        root.destroy()
+        if standalone_root is not None:
+            standalone_root.destroy()
+        else:
+            master.deiconify()
+
+    root.protocol("WM_DELETE_WINDOW", on_close)
+
+    arduino_status_var = tk.StringVar(value="Not Connected")
+    port_var = tk.StringVar()
+
+    def find_arduino_port():
+        ports = serial.tools.list_ports.comports()
+        for port in ports:
+            desc = port.description or ""
+            if "Arduino" in desc or "USB Serial" in desc or "USB to UART" in desc:
+                return port.device
+        return None
+
+    def connect_arduino():
+        nonlocal arduino
+        port = port_var.get().strip() or find_arduino_port()
+        if not port:
+            arduino_status_var.set("No Arduino found")
+            lbl_status.config(fg="red")
+            return
+        try:
+            port_var.set(port)
+            arduino = serial.Serial(port=port, baudrate=115200, timeout=0.05)
+            arduino_status_var.set(f"Connected: {port}")
+            lbl_status.config(fg="green")
+        except serial.SerialException as e:
+            arduino_status_var.set(f"Failed: {e}")
+            lbl_status.config(fg="red")
+            arduino = None
+
+    def poll_arduino():
+        nonlocal running, start_time
+        if not running:
+            return
+        if arduino is None or not arduino.is_open:
+            root.after(500, poll_arduino)
+            return
+
+        try:
+            line = arduino.readline().decode("utf-8", errors="ignore").strip()
+            if line.startswith("Data:,"):
+                parts = line.split("Data:,", 1)[1].split(",")
+                pressure_pa = float(parts[0]) * 100
+                elapsed = time.time() - start_time
+                times.append(elapsed)
+                pressures.append(pressure_pa)
+
+                # Keep last 60 seconds of data
+                cutoff = elapsed - 60
+                while times and times[0] < cutoff:
+                    times.pop(0)
+                    pressures.pop(0)
+
+                ax.clear()
+                ax.plot(times, pressures, color="#1E90FF", linewidth=1.5)
+                ax.set_xlabel("Time (s)", fontsize=16)
+                ax.set_ylabel("Pressure (Pa)", fontsize=16)
+                ax.set_title("Live Pressure", fontsize=20)
+                fig.tight_layout()
+                canvas.draw()
+        except Exception:
+            pass
+
+        root.after(100, poll_arduino)
+
+    def start_stop():
+        nonlocal running, start_time, times, pressures
+        if not running:
+            if arduino is None:
+                arduino_status_var.set("Connect to Arduino first")
+                lbl_status.config(fg="red")
+                return
+            times.clear()
+            pressures.clear()
+            start_time = time.time()
+            running = True
+            btn_startstop.config(text="Stop", bg="#F28484")
+            poll_arduino()
+        else:
+            running = False
+            btn_startstop.config(text="Start", bg="#B0CA99")
+
+    # --- Layout ---
+    root.grid_rowconfigure(0, weight=1)
+    root.grid_rowconfigure(1, weight=0)
+    root.grid_columnconfigure(0, weight=1)
+
+    # Plot
+    frame_plot = tk.Frame(root, bg="white")
+    frame_plot.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+    frame_plot.grid_rowconfigure(0, weight=1)
+    frame_plot.grid_columnconfigure(0, weight=1)
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.set_xlabel("Time (s)", fontsize=16)
+    ax.set_ylabel("Pressure (Pa)", fontsize=16)
+    ax.set_title("Live Pressure", fontsize=20, fontweight="bold")
+    canvas = FigureCanvasTkAgg(fig, frame_plot)
+    canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew")
+
+    # Controls
+    frame_ctrl = tk.Frame(root, bg="white")
+    frame_ctrl.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
+
+    tk.Label(frame_ctrl, text="Port:", bg="white", font=("Arial", 14)).pack(side="left", padx=(0, 4))
+    tk.Entry(frame_ctrl, textvariable=port_var, font=("Arial", 14), width=14).pack(side="left", padx=(0, 8))
+
+    Button(frame_ctrl, text="Connect", bg="#B0CA99", font=("Arial", 14),
+           command=connect_arduino).pack(side="left", padx=(0, 8))
+
+    lbl_status = tk.Label(frame_ctrl, textvariable=arduino_status_var,
+                          fg="red", bg="white", font=("Arial", 14))
+    lbl_status.pack(side="left", padx=(0, 20))
+
+    Button(frame_ctrl, text="Exit", bg="#F28484", font=("Arial", 14),
+           command=on_close).pack(side="right", padx=(8, 0))
+
+    btn_startstop = Button(frame_ctrl, text="Start", bg="#B0CA99",
+                           font=("Arial", 14), command=start_stop)
+    btn_startstop.pack(side="right", padx=(0, 8))
+
+    if standalone_root is not None:
+        standalone_root.mainloop()
 
 
 def _launch_experiment(master, window_title):
@@ -371,10 +533,10 @@ def _launch_experiment(master, window_title):
     root.grid_rowconfigure(3, weight=1)
 
     # Top buttons
-    btn_lab_details = tk.Button(root, text="Lab Details", bg="#B4DCEB", command=open_lab_details)
+    btn_lab_details = Button(root, text="Lab Details", bg="#B4DCEB", command=open_lab_details)
     btn_lab_details.grid(column=2, row=0, sticky="ew", padx=4, pady=4)
 
-    btn_exit = tk.Button(root, text="Exit", bg="#F28484", command=on_close)
+    btn_exit = Button(root, text="Exit", bg="#F28484", command=on_close)
     btn_exit.grid(column=3, row=0, sticky="ew", padx=4, pady=4)
 
     # Pressure graph frame
@@ -434,19 +596,19 @@ def _launch_experiment(master, window_title):
     for j in range(3):
         frame_status.grid_rowconfigure(j, weight=1, minsize=30)
 
-    lbl_arduino = tk.Label(frame_status, text="Arduino Status:", bg="white")
+    lbl_arduino = tk.Label(frame_status, text="Arduino Status:", bg="white", font=("Arial", 16))
     lbl_arduino.grid(column=0, row=0, sticky="ew")
 
-    lbl_not_conn = tk.Label(frame_status, textvariable=arduino_status_var, fg="red", bg="white")
+    lbl_not_conn = tk.Label(frame_status, textvariable=arduino_status_var, fg="red", bg="white", font=("Arial", 16))
     lbl_not_conn.grid(column=1, row=0, sticky="ew")
 
-    lbl_port = tk.Label(frame_status, text="Port:", bg="white")
+    lbl_port = tk.Label(frame_status, text="Port:", bg="white", font=("Arial", 16))
     lbl_port.grid(column=0, row=1, sticky="ew")
 
     port_entry = tk.Entry(frame_status, textvariable=port_var)
     port_entry.grid(column=1, row=1, sticky="ew")
 
-    btn_connect = tk.Button(frame_status, text="Connect", bg="#B0CA99", command=auto_connect_arduino)
+    btn_connect = Button(frame_status, text="Connect", bg="#B0CA99", command=auto_connect_arduino, font=("Arial", 15))
     btn_connect.grid(column=0, row=2, columnspan=2, sticky="ew", pady=(8, 0))
 
     # Thrust / position frame
@@ -457,23 +619,23 @@ def _launch_experiment(master, window_title):
     for i in range(4):
         frame_tp.grid_rowconfigure(i, weight=1)
 
-    lbl_thrust = tk.Label(frame_tp, text="Thrust (g)", bg="white")
+    lbl_thrust = tk.Label(frame_tp, text="Thrust (g)", bg="white", font=("Arial", 16))
     lbl_thrust.grid(column=0, row=0, sticky="ew")
 
     thrust_entry = tk.Entry(frame_tp, textvariable=thrust_var)
     thrust_entry.grid(column=0, row=1, sticky="ew")
 
-    lbl_position = tk.Label(frame_tp, text="Position:", bg="white")
+    lbl_position = tk.Label(frame_tp, text="Position (mm):", bg="white", font=("Arial", 16))
     lbl_position.grid(column=0, row=2, sticky="ew")
 
     position_entry = tk.Entry(frame_tp, textvariable=pos_var)
     position_entry.grid(column=0, row=3, sticky="ew")
 
     # Bottom buttons
-    btn_collect = tk.Button(root, text="Collect", bg="#B0CA99", command=collect_Callback)
+    btn_collect = Button(root, text="Collect", bg="#B0CA99", command=collect_Callback, font=("Arial", 16))
     btn_collect.grid(column=2, row=3, sticky="nsew", padx=8, pady=15, ipady=18)
 
-    btn_new_file = tk.Button(root, text="New File", bg="#1E90FF", command=newfile_Callback)
+    btn_new_file = Button(root, text="New File", bg="#1E90FF", command=newfile_Callback, font=("Arial", 16))
     btn_new_file.grid(column=3, row=3, sticky="nsew", padx=8, pady=15, ipady=18)
 
     # Initialize file + plots
@@ -516,41 +678,53 @@ def show_welcome_screen():
     button_frame = tk.Frame(root, bg="#dbe6f5")
     button_frame.grid(row=3, column=0)
 
-    btn_thrust = tk.Button(
+    btn_thrust = Button(
         button_frame,
         text="Launch Thrust Stand",
         font=("Arial", 18, "bold"),
         bg="#1e90ff",
         fg="white",
-        width=24,
-        height=2,
+        width=300,
+        height=55,
         command=lambda: launch_thrust_stand(root),
     )
     btn_thrust.grid(row=0, column=0, pady=10)
 
-    btn_pipe = tk.Button(
+    btn_pipe = Button(
         button_frame,
         text="Launch Pipe Flow",
         font=("Arial", 18, "bold"),
         bg="#28a745",
         fg="white",
-        width=24,
-        height=2,
+        width=300,
+        height=55,
         command=lambda: launch_pipe_flow(root),
     )
     btn_pipe.grid(row=1, column=0, pady=10)
 
-    btn_wind = tk.Button(
+    btn_wind = Button(
         button_frame,
         text="Launch Wind Tunnel",
         font=("Arial", 18, "bold"),
         bg="#ff8c00",
         fg="white",
-        width=24,
-        height=2,
+        width=300,
+        height=55,
         command=lambda: launch_wind_tunnel(root),
     )
     btn_wind.grid(row=2, column=0, pady=10)
+
+    btn_diag = Button(
+        button_frame,
+        text="Launch Diagnostic",
+        font=("Arial", 18, "bold"),
+        bg="#6a5acd",
+        fg="white",
+        width=300,
+        height=55,
+        command=lambda: launch_diagnostic(root),
+    )
+    btn_diag.grid(row=3, column=0, pady=10)
 
     root.mainloop()
 
