@@ -142,10 +142,12 @@ def _launch_diagnostic_window(master):
             pressures.clear()
             start_time = time.time()
             running = True
+            arduino.write("DIAG\n".encode())
             btn_startstop.config(text="Stop", bg="#F28484")
             poll_arduino()
         else:
             running = False
+            arduino.write("STOP\n".encode())
             btn_startstop.config(text="Start", bg="#B0CA99")
 
     # --- Layout ---
