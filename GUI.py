@@ -49,7 +49,7 @@ def _launch_diagnostic_window(master):
     arduino = None
     running = False
     times = []
-    pressures = []
+    sensor_pressures = []  # list of lists, one per sensor discovered
     start_time = None
 
     def on_close():
@@ -108,22 +108,43 @@ def _launch_diagnostic_window(master):
             line = arduino.readline().decode("utf-8", errors="ignore").strip()
             if line.startswith("Data:,"):
                 parts = line.split("Data:,", 1)[1].split(",")
-                pressure_pa = float(parts[0]) * 100
+                values = []
+                for p in parts:
+                    try:
+                        values.append(float(p) * 100)
+                    except ValueError:
+                        values.append(None)
+
+                # Initialize one list per sensor on first reading
+                if not sensor_pressures:
+                    for _ in values:
+                        sensor_pressures.append([])
+
                 elapsed = time.time() - start_time
                 times.append(elapsed)
-                pressures.append(pressure_pa)
+                for i, v in enumerate(values):
+                    if i < len(sensor_pressures):
+                        sensor_pressures[i].append(v)
 
                 # Keep last 60 seconds of data
                 cutoff = elapsed - 60
                 while times and times[0] < cutoff:
                     times.pop(0)
-                    pressures.pop(0)
+                    for sp in sensor_pressures:
+                        if sp:
+                            sp.pop(0)
 
+                colors = ["#1E90FF", "#F28484", "#28A745", "#FF8C00", "#6A5ACD"]
                 ax.clear()
-                ax.plot(times, pressures, color="#1E90FF", linewidth=1.5)
+                for i, sp in enumerate(sensor_pressures):
+                    ax.plot(times[:len(sp)], sp,
+                            color=colors[i % len(colors)],
+                            linewidth=1.5,
+                            label=f"Sensor {i + 1}")
                 ax.set_xlabel("Time (s)", fontsize=16)
                 ax.set_ylabel("Pressure (Pa)", fontsize=16)
                 ax.set_title("Live Pressure", fontsize=20)
+                ax.legend()
                 fig.tight_layout()
                 canvas.draw()
         except Exception:
@@ -132,14 +153,14 @@ def _launch_diagnostic_window(master):
         root.after(100, poll_arduino)
 
     def start_stop():
-        nonlocal running, start_time, times, pressures
+        nonlocal running, start_time, times, sensor_pressures
         if not running:
             if arduino is None:
                 arduino_status_var.set("Connect to Arduino first")
                 lbl_status.config(fg="red")
                 return
             times.clear()
-            pressures.clear()
+            sensor_pressures.clear()
             start_time = time.time()
             running = True
             arduino.write("DIAG\n".encode())
