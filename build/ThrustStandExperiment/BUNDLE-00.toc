@@ -1,0 +1,3 @@
+([('ThrustStandExperiment',
+   '/Users/taliaitskowitz/Desktop/GitHub/go-with-the-flow/dist/ThrustStandExperiment',
+   'EXECUTABLE')],)
