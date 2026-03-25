@@ -279,16 +279,30 @@ def _launch_experiment(master, window_title):
         timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
         filename = f"arduino_data{timestamp}.csv"
 
-        print(f"My current directory is {os.getcwd()}")
-        print(f"Writing data to {filename}...")
+        # Use a writable directory — Desktop if it exists, else home, else cwd
+        save_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+        if not os.path.isdir(save_dir):
+            save_dir = os.path.expanduser("~")
+        if not os.access(save_dir, os.W_OK):
+            save_dir = os.getcwd()
 
-        file_handle = open(filename, "w", newline="")
-        writer = csv.writer(file_handle)
-        writer.writerow(["x (mm)", "Pressure (Pa)", "Ambient (Pa)", "Thrust(g)"])
-        file_handle.flush()
+        filepath = os.path.join(save_dir, filename)
 
-        df = pd.read_csv(file_handle.name)
-        refresh_all(df)
+        print(f"Writing data to {filepath}...")
+
+        try:
+            file_handle = open(filepath, "w", newline="")
+            writer = csv.writer(file_handle)
+            writer.writerow(["x (mm)", "Pressure (Pa)", "Ambient (Pa)", "Thrust(g)"])
+            file_handle.flush()
+
+            df = pd.read_csv(file_handle.name)
+            refresh_all(df)
+        except Exception as e:
+            print(f"Error creating CSV file: {e}")
+            arduino_status_var.set(f"Can't create file: {e}")
+            lbl_not_conn.config(fg="red")
+            file_handle = None
 
     def find_arduino_port():
         ports = serial.tools.list_ports.comports()
@@ -319,23 +333,31 @@ def _launch_experiment(master, window_title):
             if port.isdigit():
                 port = "COM" + port
 
-            arduino = serial.Serial(port=port, baudrate=115200, timeout=0.1)
+            arduino = serial.Serial(port=port, baudrate=115200, timeout=1.0)
+            time.sleep(2)  # wait for Arduino to reset after serial open
+
+            # Flush any startup messages
+            arduino.reset_input_buffer()
+
+            # Send handshake
+            arduino.write("GReady\n".encode())
+            time.sleep(0.5)
+
+            # Read response with timeout
+            attempts = 0
+            while attempts < 10:
+                if arduino.in_waiting:
+                    line = arduino.readline().decode("utf-8", errors="ignore").strip()
+                    print(f"Arduino says: {line}")
+                    if "Arduino Ready" in line or "Ready" in line:
+                        break
+                else:
+                    arduino.write("GReady\n".encode())
+                    time.sleep(0.5)
+                attempts += 1
 
             arduino_status_var.set(f"Connected to {port}")
             lbl_not_conn.config(fg="green")
-
-            arduino_str = ""
-            while arduino_str == "":
-                arduino_str = (
-                    arduino.readline()
-                    .decode("utf-8", errors="ignore")
-                    .strip("\n")
-                    .strip("\r")
-                )
-                print("!" + arduino_str)
-                arduino.write("GReady\n".encode())
-                print("GUI Ready")
-                time.sleep(0.5)
 
         except serial.SerialException as e:
             arduino_status_var.set(f"Connection failed: {e}")
@@ -388,96 +410,70 @@ def _launch_experiment(master, window_title):
         time.sleep(0.05)
 
         writer = csv.writer(file_handle)
-        not_collected = True
+        x_pos = pos_var.get()
+        thrust = thrust_var.get()
 
-        while not_collected:
-            test_str = (
-                arduino.readline()
-                .decode("utf-8", errors="ignore")
-                .strip("\n")
-                .strip("\r")
-            )
-            print(test_str)
+        # Send collect command
+        arduino.write("a\n".encode())
+        print("Sent 'a' command")
 
-            if test_str == "Arduino Ready 1":
-                print("Arduino Ready")
+        # Wait for "Arduino Data Ready" then "Data:,..." with timeout
+        timeout = time.time() + 15  # 15 second timeout
+        got_data = False
 
-                while arduino.in_waiting:
-                    print(arduino.read())
-                    print("In Waiting 1")
+        while time.time() < timeout:
+            if arduino.in_waiting:
+                line = arduino.readline().decode("utf-8", errors="ignore").strip()
+                print(f"Received: {line}")
 
-                code = "a"
-                x_pos = pos_var.get()
-                thrust = thrust_var.get()
+                if line.startswith("Data:,"):
+                    # Parse pressure values
+                    try:
+                        modified_str = line.split("Data:,", 1)[1]
+                        pressure_values = modified_str.split(",")
 
-                while arduino.in_waiting:
-                    print(arduino.read())
-                    print("In Waiting 2")
-                    time.sleep(1)
+                        if len(pressure_values) >= 2:
+                            pitot_press = float(pressure_values[0]) * 100   # hPa -> Pa
+                            ambient_press = float(pressure_values[1]) * 100
+                        elif len(pressure_values) == 1:
+                            pitot_press = float(pressure_values[0]) * 100
+                            ambient_press = 0.0
+                        else:
+                            print("No pressure values in data line")
+                            continue
 
-                arduino.write((code + "\n").encode())
-                time.sleep(0.05)
+                        writer.writerow([
+                            x_pos,
+                            str(pitot_press),
+                            str(ambient_press),
+                            thrust,
+                        ])
+                        file_handle.flush()
 
-                returned_str = (
-                    arduino.readline()
-                    .decode("utf-8", errors="ignore")
-                    .strip("\n")
-                    .strip("\r")
-                )
-                print(returned_str)
+                        print("Wrote to CSV")
+                        df = pd.read_csv(file_handle.name)
+                        refresh_all(df)
+                        got_data = True
+                        break
 
-                while not returned_str.startswith("Arduino Data Ready"):
-                    arduino.write((code + "\n").encode())
-                    time.sleep(3)
-                    returned_str = (
-                        arduino.readline()
-                        .decode("utf-8", errors="ignore")
-                        .strip("\n")
-                        .strip("\r")
-                    )
-                    print(returned_str + "1")
+                    except (ValueError, IndexError) as e:
+                        print(f"Parse error: {e} — line was: {line}")
+                        continue
 
-                arduino.write("SendData".encode())
+            else:
+                time.sleep(0.1)
 
-                returned_str = (
-                    arduino.readline()
-                    .decode("utf-8", errors="ignore")
-                    .strip("\n")
-                    .strip("\r")
-                )
-                while not returned_str.startswith("Data"):
-                    time.sleep(0.05)
-                    returned_str = (
-                        arduino.readline()
-                        .decode("utf-8", errors="ignore")
-                        .strip("\n")
-                        .strip("\r")
-                    )
+        if not got_data:
+            arduino_status_var.set("Timeout: no data received. Check sensors.")
+            lbl_not_conn.config(fg="red")
+            print("Collect timed out")
 
-                print(returned_str)
-
-                modified_str = returned_str.split("Data:,", 1)[1]
-                pitot_press_str, ambient_press_str = modified_str.split(",", 1)
-
-                writer.writerow([
-                    x_pos,
-                    str(float(pitot_press_str) * 100),
-                    str(float(ambient_press_str) * 100),
-                    thrust,
-                ])
-                file_handle.flush()
-
-                print("Wrote to CSV")
-                df = pd.read_csv(file_handle.name)
-                refresh_all(df)
-                not_collected = False
-
-                try:
-                    arduino.reset_input_buffer()
-                    arduino.reset_output_buffer()
-                except Exception:
-                    arduino.flushInput()
-                    arduino.flushOutput()
+        try:
+            arduino.reset_input_buffer()
+            arduino.reset_output_buffer()
+        except Exception:
+            arduino.flushInput()
+            arduino.flushOutput()
 
     def display_dataframe_as_table(parent, df_example):
         tree = ttk.Treeview(parent, columns=list(df_example.columns), show="headings")
