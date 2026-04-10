@@ -230,7 +230,8 @@ def _launch_experiment(master, window_title):
     root.minsize(1200, 700)
     root.configure(bg="white")
 
-    pos_var = tk.StringVar()
+    pos_var = tk.StringVar(value="0")
+    level_var = tk.IntVar(value=1)
     thrust_var = tk.StringVar()
     port_var = tk.StringVar()
     arduino_status_var = tk.StringVar(value="Not Connected")
@@ -454,6 +455,12 @@ def _launch_experiment(master, window_title):
                         df = pd.read_csv(file_handle.name)
                         refresh_all(df)
                         got_data = True
+                        # Auto-increment position by level increment
+                        try:
+                            current_pos = float(pos_var.get())
+                            pos_var.set(str(int(current_pos + level_var.get())))
+                        except ValueError:
+                            pass
                         break
 
                     except (ValueError, IndexError) as e:
@@ -635,7 +642,7 @@ def _launch_experiment(master, window_title):
     frame_tp.grid(column=1, row=3, sticky="nsew", padx=15, pady=15)
     frame_tp.grid_columnconfigure(0, weight=1, minsize=200)
 
-    for i in range(4):
+    for i in range(6):
         frame_tp.grid_rowconfigure(i, weight=1)
 
     lbl_thrust = tk.Label(frame_tp, text="Thrust (g)", bg="white", font=("Arial", 16))
@@ -649,6 +656,16 @@ def _launch_experiment(master, window_title):
 
     position_entry = tk.Entry(frame_tp, textvariable=pos_var)
     position_entry.grid(column=0, row=3, sticky="ew")
+
+    lbl_level = tk.Label(frame_tp, text="Level:", bg="white", font=("Arial", 16))
+    lbl_level.grid(column=0, row=4, sticky="ew")
+
+    frame_level = tk.Frame(frame_tp, bg="white")
+    frame_level.grid(column=0, row=5, sticky="ew")
+    tk.Radiobutton(frame_level, text="Level 1 (+1 mm)", variable=level_var, value=1,
+                   bg="white", font=("Arial", 14)).pack(side="left", padx=(0, 8))
+    tk.Radiobutton(frame_level, text="Level 2 (+2 mm)", variable=level_var, value=2,
+                   bg="white", font=("Arial", 14)).pack(side="left")
 
     # Bottom buttons
     btn_collect = Button(root, text="Collect", bg="#B0CA99", command=collect_Callback, font=("Arial", 16))
