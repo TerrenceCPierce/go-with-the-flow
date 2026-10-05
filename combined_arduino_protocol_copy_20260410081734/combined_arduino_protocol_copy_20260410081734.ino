@@ -121,6 +121,14 @@ void processCommand(String cmd) {
     currentMode = IDLE;
     configExperiment();
     Serial.println("Diagnostic mode OFF");
+
+  } else if (cmd == "PORTS") {
+    Serial.print("Ports:,");
+    for (int j = 0; j < numValidPorts; j++) {
+      if (j > 0) Serial.print(",");
+      Serial.print(validPorts[j]);
+    }
+    Serial.println();
   }
 }
 

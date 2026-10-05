@@ -12,6 +12,7 @@ import time
 import pandas as pd
 import numpy as np
 from tkmacosx import Button
+import customtkinter as ctk
 
 AIR_DENSITY = 1.298351265  # kg/m^3
 LAB_DETAILS_URL = "https://drive.google.com/file/d/1WX5xK7Xqua2Vz-lO5Z7_klDieToz0dC8/view?usp=sharing"
@@ -28,7 +29,7 @@ def launch_pipe_flow(master=None):
 
 
 def launch_wind_tunnel(master=None):
-    _launch_experiment(master, "Wind Tunnel Experiment")
+    _launch_wind_tunnel_window(master)
 
 
 def launch_diagnostic(master=None):
@@ -244,12 +245,18 @@ def _launch_pipe_flow_window(master):
     port_var          = tk.StringVar()
     arduino_status_var = tk.StringVar(value="Not Connected")
 
-    arduino     = None
-    file_handle = None
-    NUM_SENSORS = 4
-    CSV_COLS    = ["data #"] + [f"Pressure {i+1} (Pa)" for i in range(NUM_SENSORS)]
+    arduino        = None
+    file_handle    = None
+    NUM_SENSORS    = 4
+    detected_ports = []
+    CSV_COLS       = ["data #"] + [f"Sensor {i+1} - Pressure (Pa)" for i in range(NUM_SENSORS)]
 
     df = pd.DataFrame(columns=CSV_COLS)
+
+    def _get_csv_cols():
+        if detected_ports:
+            return ["data #"] + [f"MUX Port {p} - Pressure (Pa)" for p in detected_ports]
+        return ["data #"] + [f"Port {i} - Pressure (Pa)" for i in range(NUM_SENSORS)]
 
     # ── helpers ────────────────────────────────────────────────────────────
 
@@ -277,7 +284,13 @@ def _launch_pipe_flow_window(master):
         webbrowser.open_new(LAB_DETAILS_URL)
 
     def newfile_Callback():
-        nonlocal file_handle, df
+        nonlocal file_handle, df, table
+
+        CSV_COLS[:] = _get_csv_cols()
+
+        for widget in frame_DT.winfo_children():
+            widget.destroy()
+        table = build_table(frame_DT)
 
         try:
             if file_handle is not None and not file_handle.closed:
@@ -322,6 +335,23 @@ def _launch_pipe_flow_window(master):
         print("No Arduino found")
         return None
 
+    def query_ports():
+        if arduino is None:
+            return
+        arduino.write("PORTS\n".encode())
+        arduino.flush()
+        deadline = time.time() + 3
+        while time.time() < deadline:
+            if arduino.in_waiting:
+                line = arduino.readline().decode("utf-8", errors="ignore").strip()
+                if line.startswith("Ports:,"):
+                    parts = line.split("Ports:,", 1)[1].split(",")
+                    detected_ports[:] = [int(p) for p in parts if p.strip().isdigit()]
+                    print(f"Detected MUX ports: {detected_ports}")
+                    break
+            else:
+                time.sleep(0.1)
+
     def arduinoConnect_Callback():
         nonlocal arduino
 
@@ -353,6 +383,9 @@ def _launch_pipe_flow_window(master):
                     time.sleep(0.5)
                 attempts += 1
 
+            query_ports()
+            if detected_ports:
+                newfile_Callback()
             arduino_status_var.set(f"Connected to {port}")
             lbl_not_conn.config(fg="green")
 
@@ -465,15 +498,15 @@ def _launch_pipe_flow_window(master):
     # ── plotting ────────────────────────────────────────────────────────────
 
     def refresh_plots(dataframe):
-        """Redraw all four pressure-vs-position axes."""
+        pressure_cols = CSV_COLS[1:]  # skip "data #"
         for i, ax in enumerate(axes):
             ax.clear()
-            col = f"Pressure {i+1} (Pa)"
+            col = pressure_cols[i] if i < len(pressure_cols) else None
             ax.set_xlabel("data #", fontsize=10)
             ax.set_ylabel("Pressure (Pa)", fontsize=10)
-            ax.set_title(f"Sensor {i+1}", fontsize=12, fontweight="bold",
+            ax.set_title(col or f"Sensor {i+1}", fontsize=12, fontweight="bold",
                          color=SENSOR_COLORS[i])
-            if not dataframe.empty and col in dataframe.columns:
+            if not dataframe.empty and col and col in dataframe.columns:
                 ax.plot(dataframe["data #"], dataframe[col],
                         color=SENSOR_COLORS[i], linewidth=1.8)
             figs[i].tight_layout()
@@ -600,12 +633,11 @@ def _launch_pipe_flow_window(master):
     tk.Entry(frame_tp, textvariable=pos_var,
              font=("Arial", 13)).grid(row=1, column=0, sticky="ew")
 
-    tk.Label(frame_tp, text="Auto-increment:", bg="white",
-             font=("Arial", 15)).grid(row=2, column=0, sticky="ew")
-    frame_level = tk.Frame(frame_tp, bg="white")
-    frame_level.grid(row=3, column=0, sticky="ew")
-    tk.Radiobutton(frame_level, text="+1 data collection increment", variable=level_var, value=1,
-                   bg="white", font=("Arial", 13)).pack(side="left", padx=(0, 8))
+    auto_increment_var = ctk.BooleanVar(value=True)
+    ctk.CTkSwitch(frame_tp, text="Auto-increment (+1)", variable=auto_increment_var,
+                  font=("Arial", 13),
+                  command=lambda: level_var.set(1 if auto_increment_var.get() else 0)
+                  ).grid(row=2, column=0, sticky="w", pady=(8, 0))
 
     # ── bottom action buttons ───────────────────────────────────────────────
     Button(root, text="Collect", bg="#B0CA99", font=("Arial", 16),
@@ -623,11 +655,9 @@ def _launch_pipe_flow_window(master):
         standalone_root.mainloop()
 
 
-# ---------------------------------------------------------------------------
-#  GENERIC EXPERIMENT (Thrust Stand / Wind Tunnel)
-# ---------------------------------------------------------------------------
+#  WIND TUNNEL WINDOW  
 
-def _launch_experiment(master, window_title):
+def _launch_wind_tunnel_window(master):
     standalone_root = None
 
     if master is None:
@@ -638,21 +668,37 @@ def _launch_experiment(master, window_title):
         master.withdraw()
 
     root = tk.Toplevel(master)
-    root.title(window_title)
+    root.title("Wind Tunnel Experiment")
     root.geometry("1440x900")
-    root.minsize(1200, 700)
+    root.minsize(1100, 700)
     root.configure(bg="white")
 
-    pos_var = tk.StringVar(value="0")
-    level_var = tk.IntVar(value=1)
-    thrust_var = tk.StringVar()
-    port_var = tk.StringVar()
+    # ── state ──────────────────────────────────────────────────────────────
+    pos_var            = tk.StringVar(value="0")
+    level_var          = tk.IntVar(value=1)
+    drag_var           = tk.StringVar()
+    object_var         = tk.StringVar(value="Big Teardrop")
+    port_var           = tk.StringVar()
     arduino_status_var = tk.StringVar(value="Not Connected")
 
-    arduino = None
+    OBJECT_TYPES   = ["Big Teardrop", "Small Teardrop", "Half-Sphere"]
+    detected_ports = []
+    CSV_COLS       = ["data #", "Object Type", "Drag Force (N)",
+                      "Port 0 - Static Ambient Pressure (Pa)", "Port 1 - Static Inside Pressure (Pa)"]
+
+    arduino     = None
     file_handle = None
-    timestamp = None
-    df = pd.DataFrame(columns=["x (mm)", "Pressure (Pa)", "Ambient (Pa)", "Thrust(g)"])
+    df          = pd.DataFrame(columns=CSV_COLS)
+
+    def _get_csv_cols():
+        if len(detected_ports) >= 2:
+            return ["data #", "Object Type", "Drag Force (N)",
+                    f"MUX Port {detected_ports[0]} - Static Ambient Pressure (Pa)",
+                    f"MUX Port {detected_ports[1]} - Static Inside Pressure (Pa)"]
+        return ["data #", "Object Type", "Drag Force (N)",
+                "Port 0 - Static Ambient Pressure (Pa)", "Port 1 - Static Inside Pressure (Pa)"]
+
+    # ── helpers ────────────────────────────────────────────────────────────
 
     def on_close():
         nonlocal arduino, file_handle
@@ -678,7 +724,497 @@ def _launch_experiment(master, window_title):
         webbrowser.open_new(LAB_DETAILS_URL)
 
     def newfile_Callback():
-        nonlocal file_handle, timestamp, df
+        nonlocal file_handle, df, table
+
+        CSV_COLS[:] = _get_csv_cols()
+
+        for widget in frame_DT.winfo_children():
+            widget.destroy()
+        table = build_table(frame_DT)
+
+        try:
+            if file_handle is not None and not file_handle.closed:
+                file_handle.close()
+        except Exception:
+            pass
+
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename  = f"wind_tunnel_{timestamp}.csv"
+
+        save_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+        if not os.path.isdir(save_dir):
+            save_dir = os.path.expanduser("~")
+        if not os.access(save_dir, os.W_OK):
+            save_dir = os.getcwd()
+
+        filepath = os.path.join(save_dir, filename)
+        print(f"Writing wind tunnel data to {filepath}…")
+
+        try:
+            file_handle = open(filepath, "w", newline="")
+            writer = csv.writer(file_handle)
+            writer.writerow(CSV_COLS)
+            file_handle.flush()
+            df = pd.DataFrame(columns=CSV_COLS)
+            refresh_all(df)
+        except Exception as e:
+            print(f"Error creating CSV: {e}")
+            arduino_status_var.set(f"Can't create file: {e}")
+            lbl_not_conn.config(fg="red")
+            file_handle = None
+
+    def find_arduino_port():
+        ports = serial.tools.list_ports.comports()
+        for port in ports:
+            desc = (port.description or "").lower()
+            if any(k in desc for k in ["arduino", "usb serial", "usb to uart", "ch340", "cp210", "silicon labs"]):
+                return port.device
+        return None
+
+    def query_ports():
+        if arduino is None:
+            return
+        arduino.write("PORTS\n".encode())
+        arduino.flush()
+        deadline = time.time() + 3
+        while time.time() < deadline:
+            if arduino.in_waiting:
+                line = arduino.readline().decode("utf-8", errors="ignore").strip()
+                if line.startswith("Ports:,"):
+                    parts = line.split("Ports:,", 1)[1].split(",")
+                    detected_ports[:] = [int(p) for p in parts if p.strip().isdigit()]
+                    print(f"Detected MUX ports: {detected_ports}")
+                    break
+            else:
+                time.sleep(0.1)
+
+    def arduinoConnect_Callback():
+        nonlocal arduino
+
+        try:
+            port = port_var.get().strip()
+            if not port:
+                arduino_status_var.set("Enter a port or use auto-detect")
+                lbl_not_conn.config(fg="red")
+                return
+
+            if port.isdigit():
+                port = "COM" + port
+
+            arduino = serial.Serial(port=port, baudrate=115200, timeout=1.0)
+            time.sleep(2)
+            arduino.reset_input_buffer()
+            arduino.write("GReady\n".encode())
+            time.sleep(0.5)
+
+            attempts = 0
+            while attempts < 10:
+                if arduino.in_waiting:
+                    line = arduino.readline().decode("utf-8", errors="ignore").strip()
+                    if "Arduino Ready" in line or "Ready" in line:
+                        break
+                else:
+                    arduino.write("GReady\n".encode())
+                    time.sleep(0.5)
+                attempts += 1
+
+            query_ports()
+            if detected_ports:
+                newfile_Callback()
+            arduino_status_var.set(f"Connected to {port}")
+            lbl_not_conn.config(fg="green")
+
+        except serial.SerialException as e:
+            arduino_status_var.set(f"Connection failed: {e}")
+            lbl_not_conn.config(fg="red")
+            arduino = None
+
+    def auto_connect_arduino():
+        arduino_status_var.set("Scanning for Arduino…")
+        lbl_not_conn.config(fg="black")
+        root.update_idletasks()
+        try:
+            port = find_arduino_port()
+            if not port:
+                arduino_status_var.set("No Arduino found. Plug it in and try again.")
+                lbl_not_conn.config(fg="red")
+                return
+            port_var.set(port)
+            arduino_status_var.set(f"Found {port}. Connecting…")
+            root.update_idletasks()
+            arduinoConnect_Callback()
+        except Exception as e:
+            arduino_status_var.set(f"Error: {type(e).__name__}: {e}")
+            lbl_not_conn.config(fg="red")
+            root.update_idletasks()
+
+    def collect_Callback():
+        nonlocal df
+
+        if arduino is None:
+            arduino_status_var.set("Not connected to Arduino")
+            lbl_not_conn.config(fg="red")
+            return
+        if file_handle is None or file_handle.closed:
+            arduino_status_var.set("No active CSV file. Click New File first.")
+            lbl_not_conn.config(fg="red")
+            return
+
+        try:
+            arduino.reset_input_buffer()
+            arduino.reset_output_buffer()
+        except Exception:
+            arduino.flushInput()
+            arduino.flushOutput()
+
+        time.sleep(0.05)
+
+        writer      = csv.writer(file_handle)
+        x_pos       = pos_var.get()
+        drag        = drag_var.get()
+        object_type = object_var.get()
+
+        arduino.write("a\n".encode())
+        arduino.flush()
+
+        timeout  = time.time() + 15
+        got_data = False
+
+        while time.time() < timeout:
+            if arduino.in_waiting:
+                line = arduino.readline().decode("utf-8", errors="ignore").strip()
+                print(f"Received: {line}")
+
+                if line.startswith("Data:,"):
+                    try:
+                        parts = line.split("Data:,", 1)[1].split(",")
+                        ambient_press = float(parts[0]) * 100 if len(parts) > 0 else 0.0
+                        inside_press  = float(parts[1]) * 100 if len(parts) > 1 else 0.0
+
+                        row = [x_pos, object_type, drag,
+                               str(ambient_press), str(inside_press)]
+                        writer.writerow(row)
+                        file_handle.flush()
+                        print(f"Wrote to CSV: {row}")
+
+                        df = pd.read_csv(file_handle.name)
+                        refresh_all(df)
+                        got_data = True
+
+                        try:
+                            current_pos = float(pos_var.get())
+                            pos_var.set(str(int(current_pos + level_var.get())))
+                        except ValueError:
+                            pass
+                        break
+
+                    except Exception as e:
+                        print(f"Parse error: {e} — line was: {line}")
+                        continue
+            else:
+                time.sleep(0.1)
+
+        if not got_data:
+            arduino_status_var.set("Timeout: no data received. Check sensors.")
+            lbl_not_conn.config(fg="red")
+
+        try:
+            arduino.reset_input_buffer()
+            arduino.reset_output_buffer()
+        except Exception:
+            arduino.flushInput()
+            arduino.flushOutput()
+
+    # ── plotting ────────────────────────────────────────────────────────────
+
+    def refresh_plots(dataframe):
+        ax_amb.clear()
+        ax_amb.set_xlabel("data #", fontsize=11)
+        ax_amb.set_ylabel("Pressure (Pa)", fontsize=11)
+        ax_amb.set_title("Static Ambient Pressure", fontsize=13, fontweight="bold",
+                         color=SENSOR_COLORS[0])
+        amb_col = CSV_COLS[3]
+        if not dataframe.empty and amb_col in dataframe.columns:
+            ax_amb.plot(dataframe["data #"], dataframe[amb_col],
+                        color=SENSOR_COLORS[0], linewidth=1.8)
+        fig_amb.tight_layout()
+        canvas_amb.draw()
+
+        ins_col = CSV_COLS[4]
+        ax_ins.clear()
+        ax_ins.set_xlabel("data #", fontsize=11)
+        ax_ins.set_ylabel("Pressure (Pa)", fontsize=11)
+        ax_ins.set_title("Static Inside Pressure", fontsize=13, fontweight="bold",
+                         color=SENSOR_COLORS[1])
+        if not dataframe.empty and ins_col in dataframe.columns:
+            ax_ins.plot(dataframe["data #"], dataframe[ins_col],
+                        color=SENSOR_COLORS[1], linewidth=1.8)
+        fig_ins.tight_layout()
+        canvas_ins.draw()
+
+
+
+    def build_table(parent):
+        tree = ttk.Treeview(parent, columns=CSV_COLS, show="headings")
+        for col in CSV_COLS:
+            tree.heading(col, text=col)
+            tree.column(col, anchor="center", width=130, stretch=True)
+        vsb = ttk.Scrollbar(parent, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=vsb.set)
+        tree.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        parent.grid_rowconfigure(0, weight=1)
+        parent.grid_columnconfigure(0, weight=1)
+        return tree
+
+    def refresh_table(dataframe):
+        for row in table.get_children():
+            table.delete(row)
+        for _, row in dataframe.iterrows():
+            table.insert("", tk.END, values=list(row))
+
+    def refresh_all(dataframe):
+        refresh_plots(dataframe)
+        refresh_table(dataframe)
+
+    def update_gui():
+        nonlocal df
+        try:
+            if file_handle is not None and os.path.exists(file_handle.name):
+                new_df = pd.read_csv(file_handle.name)
+                df = new_df
+                refresh_all(new_df)
+        except Exception as e:
+            print(f"Update error: {e}")
+        root.after(1000, update_gui)
+
+
+    root.grid_columnconfigure(0, weight=3)
+    root.grid_columnconfigure(1, weight=3)
+    root.grid_columnconfigure(2, weight=2)
+    root.grid_columnconfigure(3, weight=2)
+    for r in range(4):
+        root.grid_rowconfigure(r, weight=1 if r in (1, 2) else 0)
+
+    # Top bar
+    Button(root, text="Lab Details", bg="#B4DCEB", font=("Arial", 13),
+           command=open_lab_details).grid(row=0, column=2, sticky="ew", padx=4, pady=4)
+    Button(root, text="Exit", bg="#F28484", font=("Arial", 13),
+           command=on_close).grid(row=0, column=3, sticky="ew", padx=4, pady=4)
+
+    # ── ambient pressure graph ──────────────────────────────────────────────
+    frame_amb = tk.Frame(root, bg="white")
+    frame_amb.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=6, pady=6)
+    frame_amb.grid_rowconfigure(0, weight=1)
+    frame_amb.grid_columnconfigure(0, weight=1)
+
+    fig_amb, ax_amb = plt.subplots(figsize=(5, 2.8))
+    ax_amb.set_xlabel("data #", fontsize=11)
+    ax_amb.set_ylabel("Pressure (Pa)", fontsize=11)
+    ax_amb.set_title("Static Ambient Pressure", fontsize=13, fontweight="bold",
+                     color=SENSOR_COLORS[0])
+    fig_amb.tight_layout()
+    canvas_amb = FigureCanvasTkAgg(fig_amb, frame_amb)
+    canvas_amb.get_tk_widget().grid(row=0, column=0, sticky="nsew")
+
+    # ── inside pressure graph ───────────────────────────────────────────────
+    frame_ins = tk.Frame(root, bg="white")
+    frame_ins.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=6, pady=6)
+    frame_ins.grid_rowconfigure(0, weight=1)
+    frame_ins.grid_columnconfigure(0, weight=1)
+
+    fig_ins, ax_ins = plt.subplots(figsize=(5, 2.8))
+    ax_ins.set_xlabel("data #", fontsize=11)
+    ax_ins.set_ylabel("Pressure (Pa)", fontsize=11)
+    ax_ins.set_title("Static Inside Pressure", fontsize=13, fontweight="bold",
+                     color=SENSOR_COLORS[1])
+    fig_ins.tight_layout()
+    canvas_ins = FigureCanvasTkAgg(fig_ins, frame_ins)
+    canvas_ins.get_tk_widget().grid(row=0, column=0, sticky="nsew")
+
+    # ── data table ──────────────────────────────────────────────────────────
+    frame_DT = tk.Frame(root, bg="white")
+    frame_DT.grid(row=1, column=2, columnspan=2, rowspan=2,
+                  sticky="nsew", padx=8, pady=8)
+    table = build_table(frame_DT)
+
+    # ── arduino status ──────────────────────────────────────────────────────
+    frame_status = tk.Frame(root, bg="white")
+    frame_status.grid(row=3, column=0, sticky="nsew", padx=15, pady=10)
+    for i in range(2):
+        frame_status.grid_columnconfigure(i, weight=1, minsize=120)
+    for j in range(3):
+        frame_status.grid_rowconfigure(j, weight=1, minsize=30)
+
+    tk.Label(frame_status, text="Arduino Status:", bg="white",
+             font=("Arial", 15)).grid(row=0, column=0, sticky="ew")
+    lbl_not_conn = tk.Label(frame_status, textvariable=arduino_status_var,
+                            fg="red", bg="white", font=("Arial", 15))
+    lbl_not_conn.grid(row=0, column=1, sticky="ew")
+
+    tk.Label(frame_status, text="Port:", bg="white",
+             font=("Arial", 15)).grid(row=1, column=0, sticky="ew")
+    tk.Entry(frame_status, textvariable=port_var,
+             font=("Arial", 13)).grid(row=1, column=1, sticky="ew")
+
+    Button(frame_status, text="Connect", bg="#B0CA99", font=("Arial", 14),
+           command=auto_connect_arduino).grid(row=2, column=0, columnspan=2,
+                                              sticky="ew", pady=(8, 0))
+
+    # ── experiment inputs ───────────────────────────────────────────────────
+    _script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    def _load_image(filename, size=50):
+        path = os.path.join(_script_dir, filename)
+        if not os.path.isfile(path):
+            return None
+        try:
+            from PIL import Image, ImageTk
+            img = Image.open(path).convert("RGBA")
+            img.thumbnail((size, size), Image.LANCZOS)
+            return ImageTk.PhotoImage(img)
+        except ImportError:
+            photo = tk.PhotoImage(file=path)
+            factor = max(1, photo.width() // size, photo.height() // size)
+            return photo.subsample(factor, factor)
+
+    _object_images = {
+        "Big Teardrop":   _load_image("Large_Teardrop.webp", size=90),
+        "Small Teardrop": _load_image("Small_Teardrop.webp", size=50),
+        "Half-Sphere":    _load_image("Half_Sphere.png",     size=70),
+    }
+
+    frame_inputs = tk.Frame(root, bg="white")
+    frame_inputs.grid(row=3, column=1, sticky="nsew", padx=15, pady=10)
+    frame_inputs.grid_columnconfigure(0, weight=1)
+    for i in range(8):
+        frame_inputs.grid_rowconfigure(i, weight=1)
+
+    tk.Label(frame_inputs, text="Object Type:", bg="white",
+             font=("Arial", 15)).grid(row=0, column=0, sticky="w")
+
+    lbl_obj_img = tk.Label(frame_inputs, bg="white")
+    lbl_obj_img.grid(row=1, column=0, pady=(2, 4))
+
+    combo_obj = ttk.Combobox(frame_inputs, textvariable=object_var, values=OBJECT_TYPES,
+                             state="readonly", font=("Arial", 13))
+    combo_obj.grid(row=2, column=0, sticky="ew")
+
+    def _update_object_image(*_):
+        img = _object_images.get(object_var.get())
+        if img:
+            lbl_obj_img.config(image=img, text="")
+            lbl_obj_img.image = img
+        else:
+            lbl_obj_img.config(image="", text="(no image)")
+            lbl_obj_img.image = None
+
+    object_var.trace_add("write", _update_object_image)
+    _update_object_image()
+
+    tk.Label(frame_inputs, text="Drag Force (N):", bg="white",
+             font=("Arial", 15)).grid(row=3, column=0, sticky="w", pady=(8, 0))
+    tk.Entry(frame_inputs, textvariable=drag_var,
+             font=("Arial", 13)).grid(row=4, column=0, sticky="ew")
+
+    tk.Label(frame_inputs, text="Data # :", bg="white",
+             font=("Arial", 15)).grid(row=5, column=0, sticky="w", pady=(8, 0))
+    tk.Entry(frame_inputs, textvariable=pos_var,
+             font=("Arial", 13)).grid(row=6, column=0, sticky="ew")
+
+    auto_increment_var = ctk.BooleanVar(value=True)
+    ctk.CTkSwitch(frame_inputs, text="Auto-increment (+1)", variable=auto_increment_var,
+                  font=("Arial", 13),
+                  command=lambda: level_var.set(1 if auto_increment_var.get() else 0)
+                  ).grid(row=7, column=0, sticky="w", pady=(4, 0))
+
+    # ── bottom action buttons ───────────────────────────────────────────────
+    Button(root, text="Collect", bg="#B0CA99", font=("Arial", 18),
+           command=collect_Callback).grid(row=3, column=2, sticky="nsew",
+                                          padx=8, pady=12, ipady=16)
+    Button(root, text="New File", bg="#1E90FF", font=("Arial", 18),
+           command=newfile_Callback).grid(row=3, column=3, sticky="nsew",
+                                          padx=8, pady=12, ipady=16)
+
+    # ── init ────────────────────────────────────────────────────────────────
+    newfile_Callback()
+    update_gui()
+
+    if standalone_root is not None:
+        standalone_root.mainloop()
+
+
+
+#  GENERIC EXPERIMENT (Thrust Stand / Wind Tunnel)
+
+def _launch_experiment(master, window_title):
+    standalone_root = None
+
+    if master is None:
+        standalone_root = tk.Tk()
+        standalone_root.withdraw()
+        master = standalone_root
+    else:
+        master.withdraw()
+
+    root = tk.Toplevel(master)
+    root.title(window_title)
+    root.geometry("1440x900")
+    root.minsize(1200, 700)
+    root.configure(bg="white")
+
+    pos_var = tk.StringVar(value="0")
+    level_var = tk.IntVar(value=1)
+    thrust_var = tk.StringVar()
+    port_var = tk.StringVar()
+    arduino_status_var = tk.StringVar(value="Not Connected")
+
+    arduino        = None
+    file_handle    = None
+    timestamp      = None
+    detected_ports = []
+    CSV_COLS       = ["x (mm)", "Port 0 - Pressure (Pa)", "Port 1 - Ambient (Pa)", "Thrust(g)"]
+    df             = pd.DataFrame(columns=CSV_COLS)
+
+    def _get_csv_cols():
+        if len(detected_ports) >= 2:
+            return ["x (mm)",
+                    f"MUX Port {detected_ports[0]} - Pressure (Pa)",
+                    f"MUX Port {detected_ports[1]} - Ambient (Pa)",
+                    "Thrust(g)"]
+        return ["x (mm)", "Port 0 - Pressure (Pa)", "Port 1 - Ambient (Pa)", "Thrust(g)"]
+
+    def on_close():
+        nonlocal arduino, file_handle
+        try:
+            if arduino is not None and arduino.is_open:
+                arduino.close()
+        except Exception:
+            pass
+        try:
+            if file_handle is not None and not file_handle.closed:
+                file_handle.close()
+        except Exception:
+            pass
+        root.destroy()
+        if standalone_root is not None:
+            standalone_root.destroy()
+        else:
+            master.deiconify()
+
+    root.protocol("WM_DELETE_WINDOW", on_close)
+
+    def open_lab_details():
+        webbrowser.open_new(LAB_DETAILS_URL)
+
+    def newfile_Callback():
+        nonlocal file_handle, timestamp, df, table
+
+        CSV_COLS[:] = _get_csv_cols()
+
+        for widget in frame_DT.winfo_children():
+            widget.destroy()
+        table = display_dataframe_as_table(frame_DT, pd.DataFrame(columns=CSV_COLS))
 
         try:
             if file_handle is not None and not file_handle.closed:
@@ -699,10 +1235,12 @@ def _launch_experiment(master, window_title):
         filepath = os.path.join(save_dir, filename)
         print(f"Writing data to {filepath}...")
 
+        CSV_COLS[:] = _get_csv_cols()
+
         try:
             file_handle = open(filepath, "w", newline="")
             writer = csv.writer(file_handle)
-            writer.writerow(["x (mm)", "Pressure (Pa)", "Ambient (Pa)", "Thrust(g)"])
+            writer.writerow(CSV_COLS)
             file_handle.flush()
             df = pd.read_csv(file_handle.name)
             refresh_all(df)
@@ -722,6 +1260,23 @@ def _launch_experiment(master, window_title):
                 return port.device
         print("No Arduino found")
         return None
+
+    def query_ports():
+        if arduino is None:
+            return
+        arduino.write("PORTS\n".encode())
+        arduino.flush()
+        deadline = time.time() + 3
+        while time.time() < deadline:
+            if arduino.in_waiting:
+                line = arduino.readline().decode("utf-8", errors="ignore").strip()
+                if line.startswith("Ports:,"):
+                    parts = line.split("Ports:,", 1)[1].split(",")
+                    detected_ports[:] = [int(p) for p in parts if p.strip().isdigit()]
+                    print(f"Detected MUX ports: {detected_ports}")
+                    break
+            else:
+                time.sleep(0.1)
 
     def arduinoConnect_Callback():
         nonlocal arduino
@@ -754,6 +1309,9 @@ def _launch_experiment(master, window_title):
                     time.sleep(0.5)
                 attempts += 1
 
+            query_ports()
+            if detected_ports:
+                newfile_Callback()
             arduino_status_var.set(f"Connected to {port}")
             lbl_not_conn.config(fg="green")
 
@@ -880,7 +1438,10 @@ def _launch_experiment(master, window_title):
 
     def refresh_plots(dataframe):
         ax1.clear()
-        ax1.plot(dataframe["x (mm)"], dataframe["Pressure (Pa)"], color="red")
+        press_col = CSV_COLS[1]
+        amb_col   = CSV_COLS[2]
+        if not dataframe.empty and press_col in dataframe.columns:
+            ax1.plot(dataframe["x (mm)"], dataframe[press_col], color="red")
         ax1.set_xlabel("x (mm)", fontsize=12)
         ax1.set_ylabel("Pressure (Pa)", fontsize=12)
 
@@ -888,9 +1449,9 @@ def _launch_experiment(master, window_title):
         velocity = np.sqrt(
             np.maximum(
                 0,
-                2 * (dataframe["Pressure (Pa)"] - dataframe["Ambient (Pa)"]) / AIR_DENSITY,
+                2 * (dataframe[press_col] - dataframe[amb_col]) / AIR_DENSITY,
             )
-        )
+        ) if not dataframe.empty and press_col in dataframe.columns and amb_col in dataframe.columns else np.array([])
         ax2.plot(dataframe["x (mm)"], velocity, color="red")
         ax2.set_xlabel("x (mm)", fontsize=12)
         ax2.set_ylabel("V (m/s)", fontsize=12)
@@ -988,25 +1549,32 @@ def _launch_experiment(master, window_title):
     for i in range(6):
         frame_tp.grid_rowconfigure(i, weight=1)
 
-    tk.Label(frame_tp, text="Thrust (g)", bg="white",
-             font=("Arial", 16)).grid(column=0, row=0, sticky="ew")
+    tk.Label(frame_tp, text="Thrust (g):", bg="white",
+             font=("Arial", 16)).grid(column=0, row=0, sticky="w")
     tk.Entry(frame_tp, textvariable=thrust_var).grid(column=0, row=1, sticky="ew")
     tk.Label(frame_tp, text="Position (mm):", bg="white",
-             font=("Arial", 16)).grid(column=0, row=2, sticky="ew")
+             font=("Arial", 16)).grid(column=0, row=2, sticky="w")
     tk.Entry(frame_tp, textvariable=pos_var).grid(column=0, row=3, sticky="ew")
-    tk.Label(frame_tp, text="Level:", bg="white",
-             font=("Arial", 16)).grid(column=0, row=4, sticky="ew")
-    frame_level = tk.Frame(frame_tp, bg="white")
-    frame_level.grid(column=0, row=5, sticky="ew")
-    tk.Radiobutton(frame_level, text="Level 1 (+1 mm)", variable=level_var, value=1,
-                   bg="white", font=("Arial", 14)).pack(side="left", padx=(0, 8))
-    tk.Radiobutton(frame_level, text="Level 2 (+2 mm)", variable=level_var, value=2,
-                   bg="white", font=("Arial", 14)).pack(side="left")
+    auto_increment_var = ctk.BooleanVar(value=False)
+    level_var.set(1)
+
+    def on_increment_toggle():
+        if auto_increment_var.get():
+            level_var.set(2)
+            increment_switch.configure(text="(+2 mm)")
+        else:
+            level_var.set(1)
+            increment_switch.configure(text="(+1 mm)")
+
+    increment_switch = ctk.CTkSwitch(frame_tp, text="(+1 mm)",
+                                     variable=auto_increment_var, font=("Arial", 16),
+                                    command=on_increment_toggle)
+    increment_switch.grid(column=0, row=2, sticky="e", pady=(8, 0))
 
     Button(root, text="Collect", bg="#B0CA99", command=collect_Callback,
-           font=("Arial", 16)).grid(column=2, row=3, sticky="nsew", padx=8, pady=15, ipady=18)
+           font=("Arial", 18)).grid(column=2, row=3, sticky="nsew", padx=8, pady=15, ipady=18)
     Button(root, text="New File", bg="#1E90FF", command=newfile_Callback,
-           font=("Arial", 16)).grid(column=3, row=3, sticky="nsew", padx=8, pady=15, ipady=18)
+           font=("Arial", 18)).grid(column=3, row=3, sticky="nsew", padx=8, pady=15, ipady=18)
 
     newfile_Callback()
     update_gui()
