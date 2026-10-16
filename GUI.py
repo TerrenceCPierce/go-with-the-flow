@@ -452,15 +452,26 @@ def _launch_pipe_flow_window(master):
                 if line.startswith("Data:,"):
                     try:
                         raw_vals = line.split("Data:,", 1)[1].split(",")
-                        # Convert hPa → Pa, pad with 0.0 if fewer than NUM_SENSORS values
-                        pressures = []
-                        for i in range(NUM_SENSORS):
-                            try:
-                                pressures.append(float(raw_vals[i]) * 100)
-                            except (IndexError, ValueError):
-                                pressures.append(0.0)
+                        # Convert hPa → Pa, one value per sensor the Arduino actually read
+                        pressures = [float(v) * 100 for v in raw_vals if v.strip()]
+                        if not pressures:
+                            arduino_status_var.set("Arduino found no sensors. Check wiring, then Connect again.")
+                            lbl_not_conn.config(fg="red")
+                            got_data = True  # the Arduino answered; don't report a timeout
+                            break
 
-                        row = [x_pos] + [str(p) for p in pressures]
+                        # The row must have exactly one value per pressure column, or the
+                        # values end up under the wrong headers. Missing sensors stay blank.
+                        n_cols = len(CSV_COLS) - 1
+                        if len(pressures) != n_cols:
+                            arduino_status_var.set(
+                                f"Got {len(pressures)} sensor readings but the file has {n_cols} "
+                                f"sensor columns. Click Connect again after changing sensors.")
+                            lbl_not_conn.config(fg="red")
+                        values = [str(p) for p in pressures[:n_cols]]
+                        values += [""] * (n_cols - len(values))
+
+                        row = [x_pos] + values
                         writer.writerow(row)
                         file_handle.flush()
                         print(f"Wrote to CSV: {row}")
